@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Gesture Controlled 3D Particles</title>
     
-    <!-- Tailwind CSS -->
+    <!-- Tailwind CSS (Play CDN for prototype) -->
     <script src="https://cdn.tailwindcss.com"></script>
     
     <!-- Three.js -->
@@ -16,11 +16,6 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/control_utils/control_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
-
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
 
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -36,7 +31,7 @@
             left: 20px;
             z-index: 10;
             width: 340px;
-            pointer-events: none; /* Allow clicks to pass through to canvas where UI isn't */
+            pointer-events: none;
         }
         
         .glass-panel {
@@ -52,15 +47,12 @@
             transition: all 0.3s ease;
         }
 
-        /* Hide the video element used for tracking */
         .input_video { display: none; }
 
-        /* Custom Scrollbar */
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: rgba(0,0,0,0.1); }
         ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.2); border-radius: 3px; }
 
-        /* Button Styling */
         .btn-mode {
             background: rgba(255, 255, 255, 0.1);
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -74,24 +66,12 @@
             font-weight: 600;
         }
 
-        .status-dot {
-            height: 8px;
-            width: 8px;
-            border-radius: 50%;
-            display: inline-block;
-            margin-right: 6px;
-        }
+        .status-dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
 
         .audio-btn {
-            background: rgba(255,255,255,0.1);
-            width: 32px;
-            height: 32px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            cursor: pointer;
-            transition: all 0.2s;
+            background: rgba(255,255,255,0.1); width: 32px; height: 32px;
+            display: flex; align-items: center; justify-content: center;
+            border-radius: 50%; cursor: pointer; transition: all 0.2s;
         }
         .audio-btn:hover { background: rgba(255,255,255,0.3); }
         .audio-btn.muted { color: #ef4444; }
@@ -105,72 +85,38 @@
         }
         
         .gesture-indicator {
-            display: inline-block;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.65rem;
-            text-transform: uppercase;
-            font-weight: bold;
-            background: rgba(255,255,255,0.1);
-            margin-left: 8px;
-            opacity: 0;
-            transition: opacity 0.2s;
+            display: inline-block; padding: 2px 6px; border-radius: 4px;
+            font-size: 0.65rem; text-transform: uppercase; font-weight: bold;
+            background: rgba(255,255,255,0.1); margin-left: 8px;
+            opacity: 0; transition: opacity 0.2s;
         }
         .gesture-indicator.active { opacity: 1; background: #ef4444; }
-
-        /* Multiplayer specific */
-        .mp-input {
-            background: rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.2);
-            color: white;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            width: 80px;
-            text-transform: uppercase;
-        }
-        .role-badge {
-            font-size: 0.7rem;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-weight: bold;
-            margin-left: auto;
-        }
-        .role-batter { background: #3b82f6; color: white; }
-        .role-bowler { background: #ef4444; color: white; }
         
         .velocity-bar {
-            height: 4px;
-            background: #333;
-            width: 100%;
-            margin-top: 4px;
-            border-radius: 2px;
-            overflow: hidden;
+            height: 4px; background: #333; width: 100%;
+            margin-top: 4px; border-radius: 2px; overflow: hidden;
         }
         .velocity-fill {
-            height: 100%;
-            background: #a855f7;
-            width: 0%;
-            transition: width 0.1s;
+            height: 100%; background: #a855f7; width: 0%; transition: width 0.1s;
         }
     </style>
 </head>
 <body>
 
-    <!-- Webcam Video (Hidden) -->
     <video class="input_video"></video>
 
-    <!-- UI Overlay -->
     <div id="ui-layer">
         <div class="glass-panel mb-4">
             <div class="flex justify-between items-start mb-4">
                 <div>
                     <h1 class="text-xl font-bold mb-1 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Particle Engine</h1>
-                    <p class="text-xs text-gray-400">Profound Physics & Sync</p>
+                    <p class="text-xs text-gray-400">Physics & AI</p>
                 </div>
-                <button id="audio-toggle" class="audio-btn muted" onclick="toggleAudio()" title="Toggle Techno">
-                    <i class="fas fa-volume-mute"></i>
-                </button>
+                <div class="flex gap-2">
+                    <button id="audio-toggle" class="audio-btn muted" onclick="toggleAudio()" title="Toggle Audio">
+                        <i class="fas fa-volume-mute"></i>
+                    </button>
+                </div>
             </div>
 
             <!-- Status -->
@@ -195,7 +141,7 @@
                         <button onclick="setMode('sphere')" id="btn-sphere" class="btn-mode py-2 rounded-md">Sphere</button>
                         <button onclick="setMode('spiral')" id="btn-spiral" class="btn-mode py-2 rounded-md">Spiral</button>
                         <button onclick="setMode('fireworks')" id="btn-fireworks" class="btn-mode py-2 rounded-md">Burst</button>
-                        <button onclick="setMode('cricket')" id="btn-cricket" class="btn-mode py-2 rounded-md">Cricket</button>
+                        <button onclick="setMode('cricket')" id="btn-cricket" class="btn-mode py-2 rounded-md">Cricket Vs AI</button>
                     </div>
                 </div>
 
@@ -208,394 +154,180 @@
                 </div>
             </div>
 
-            <!-- Multiplayer Section -->
-            <div id="mp-section" class="mt-4 pt-4 border-t border-white/10">
-                <div class="flex justify-between items-center mb-2">
-                    <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Multiplayer</label>
-                    <span id="mp-status" class="text-[10px] text-gray-500">OFFLINE</span>
-                </div>
-                
-                <!-- Lobby Controls -->
-                <div id="lobby-controls" class="flex gap-2">
-                    <button onclick="createGame()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-1.5 rounded transition">Create</button>
-                    <input type="text" id="join-code" placeholder="CODE" class="mp-input" maxlength="4">
-                    <button onclick="joinGame()" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-xs py-1.5 rounded transition">Join</button>
-                </div>
-
-                <!-- Active Game Info (Hidden by default) -->
-                <div id="game-controls" class="hidden">
-                    <div class="flex items-center bg-white/5 p-2 rounded mb-2">
-                        <div class="text-xs w-full">
-                            <div class="flex justify-between">
-                                <span class="text-gray-400">Room Code</span>
-                                <div id="my-role-badge" class="role-badge role-batter">BATTER</div>
+            <!-- Cricket HUD (Only visible in cricket mode) -->
+            <div id="cricket-hud" class="mt-4 pt-4 border-t border-white/10 hidden">
+                <div class="flex items-center bg-white/5 p-2 rounded mb-2">
+                    <div class="text-xs w-full">
+                        <div class="flex justify-between mb-1">
+                            <span class="text-gray-400 font-bold">BATTER (You)</span>
+                            <span class="text-yellow-400 font-bold" id="game-status">WAITING FOR AI...</span>
+                        </div>
+                        
+                        <!-- Physics Stats -->
+                        <div class="mt-2 pt-2 border-t border-white/10">
+                            <div class="flex justify-between text-[10px] text-gray-400">
+                                <span>Swing Power</span>
+                                <span id="velocity-val">0.0</span>
                             </div>
-                            <div id="room-code-display" class="font-mono font-bold text-lg tracking-widest text-white select-all">----</div>
-                            
-                            <!-- Physics Stats -->
-                            <div class="mt-2 pt-2 border-t border-white/10">
-                                <div class="flex justify-between text-[10px] text-gray-400">
-                                    <span>Gesture Velocity</span>
-                                    <span id="velocity-val">0.0</span>
-                                </div>
-                                <div class="velocity-bar">
-                                    <div id="velocity-fill" class="velocity-fill"></div>
-                                </div>
+                            <div class="velocity-bar">
+                                <div id="velocity-fill" class="velocity-fill"></div>
                             </div>
                         </div>
                     </div>
-                    <p id="game-instruction" class="text-[10px] text-gray-400 text-center">Share code to play</p>
                 </div>
+                <p class="text-[10px] text-gray-400 text-center">Use Open Palm to Swing Bat</p>
             </div>
         </div>
 
         <div class="glass-panel">
             <h2 class="text-xs font-bold text-gray-300 mb-2 uppercase">Gestures</h2>
             <ul class="text-xs text-gray-400 space-y-1.5 list-disc pl-4" id="instructions-list">
-                <li><strong class="text-white">Pinch</strong> to scale universe.</li>
+                <li><strong class="text-white">Pinch</strong> to scale.</li>
                 <li><strong class="text-white">Fist</strong> for Gravity Well.</li>
                 <li><strong class="text-white">Open Hand</strong> to reset.</li>
             </ul>
         </div>
     </div>
 
-    <!-- 3D Canvas -->
     <div id="canvas-container"></div>
 
     <script>
-        // --- FIREBASE CONFIG & INIT ---
-        let app, auth, db;
-        let currentUser = null;
-        let gameId = null;
-        let myRole = null; // 'batter' or 'bowler'
-        let unsubscribeGame = null;
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
-        // Safe Initialization
-        try {
-            if (typeof firebase === 'undefined') {
-                document.getElementById('mp-status').innerText = "SDK ERROR";
-                document.getElementById('mp-status').classList.add('text-red-500');
-            }
-            else if (typeof __firebase_config !== 'undefined') {
-                document.getElementById('mp-status').innerText = "CONNECTING...";
-                document.getElementById('mp-status').className = "text-[10px] text-yellow-500 animate-pulse";
-
-                const firebaseConfig = JSON.parse(__firebase_config);
-                if (!firebase.apps.length) app = firebase.initializeApp(firebaseConfig);
-                else app = firebase.app();
-                
-                auth = firebase.auth();
-                db = firebase.firestore();
-
-                const initAuth = async () => {
-                    try {
-                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                            await auth.signInWithCustomToken(__initial_auth_token);
-                        } else {
-                            await auth.signInAnonymously();
-                        }
-                    } catch (err) {
-                        document.getElementById('mp-status').innerText = "AUTH FAIL";
-                        document.getElementById('mp-status').className = "text-[10px] text-red-500";
-                    }
-                };
-                initAuth();
-
-                auth.onAuthStateChanged((user) => {
-                    currentUser = user;
-                    if (user) {
-                        document.getElementById('mp-status').innerText = "ONLINE";
-                        document.getElementById('mp-status').className = "text-[10px] text-green-500 font-bold";
-                    } else {
-                        document.getElementById('mp-status').innerText = "DISCONNECTED";
-                        document.getElementById('mp-status').className = "text-[10px] text-gray-500";
-                    }
-                });
-            } else {
-                console.warn("Firebase config not found. Multiplayer disabled.");
-                document.getElementById('mp-status').innerText = "OFFLINE (No Config)";
-                document.getElementById('mp-status').classList.add('text-red-500');
-            }
-        } catch (e) {
-            console.error("Firebase init crash:", e);
-            document.getElementById('mp-status').innerText = "ERROR";
-            document.getElementById('mp-status').classList.add('text-red-500');
-        }
-
-        // --- CRICKET ENGINE (Physics & State) ---
+        // --- CRICKET ENGINE (Physics & AI) ---
         const CricketEngine = {
-            state: 'IDLE', // IDLE, BOWL_READY, BALL_FLYING, BALL_HIT, RETURNING
+            state: 'IDLE', 
             ballPos: new THREE.Vector3(0, 0, 0),
             ballVel: new THREE.Vector3(0, 0, 0),
-            batPos: new THREE.Vector3(0, 0, 0),
+            autoBowlTimer: 0,
             
-            // Configuration
-            gravity: -0.015,
-            drag: 0.99,
+            gravity: -0.012,
+            drag: 0.995,
             groundY: -10,
             
             reset() {
                 this.state = 'IDLE';
-                this.ballPos.set(-10, -5, 5); // Default start
+                this.ballPos.set(-10, -5, 20); // Reset to bowler start
                 this.ballVel.set(0,0,0);
+                document.getElementById('game-status').innerText = "WAITING...";
             },
 
             update() {
+                // AI BOWLER LOGIC
+                if (currentMode === 'cricket' && this.state === 'IDLE') {
+                    this.autoBowlTimer++;
+                    if (this.autoBowlTimer > 150) { // Bowl every ~2.5 seconds
+                        this.autoBowlTimer = 0;
+                        this.triggerAIBowl();
+                    }
+                }
+
                 if (this.state === 'BALL_FLYING' || this.state === 'BALL_HIT') {
-                    // Apply Physics
                     this.ballPos.add(this.ballVel);
                     this.ballVel.y += this.gravity;
                     this.ballVel.multiplyScalar(this.drag);
 
-                    // Ground Bounce
+                    // Bounce logic
                     if (this.ballPos.y < this.groundY) {
                         this.ballPos.y = this.groundY;
-                        this.ballVel.y *= -0.7; // Bounce dampening
+                        this.ballVel.y *= -0.75; // Bounciness
+                        // Add friction on ground
+                        this.ballVel.x *= 0.9;
+                        this.ballVel.z *= 0.9;
                     }
                     
-                    // Boundary Reset (Roughly)
-                    if (this.ballPos.length() > 60) {
-                        this.reset();
-                    }
+                    // Reset if out of bounds
+                    if (this.ballPos.length() > 80) this.reset();
                 }
             },
 
-            // Called when Bowler releases ball
+            triggerAIBowl() {
+                // Determine start position (Bowler end)
+                const startX = (Math.random() - 0.5) * 4; // Vary delivery angle
+                const startY = 0; // Release height
+                const startZ = 40; // Far end of pitch
+                
+                const start = new THREE.Vector3(startX, startY, startZ);
+                
+                // Target the wickets (approx 0, -5, 0)
+                const target = new THREE.Vector3((Math.random()-0.5)*2, -5, 0); 
+                
+                // Calculate velocity to reach target
+                const vel = target.sub(start).multiplyScalar(0.045 + Math.random() * 0.01); // Random speed
+                vel.y += 0.2; // slight loft
+                
+                this.bowl(start, vel);
+                document.getElementById('game-status').innerText = "INCOMING!";
+                document.getElementById('game-status').className = "text-red-500 font-bold animate-pulse";
+            },
+
             bowl(startPos, velocity) {
                 this.ballPos.copy(startPos);
                 this.ballVel.copy(velocity);
                 this.state = 'BALL_FLYING';
-                SoundEngine.playSynthNote(400, 0.1, 'square'); // Release sound
+                SoundEngine.playSynthNote(400, 0.1, 'square'); 
             },
 
-            // Called when Bat hits ball
             hit(newVelocity) {
                 this.ballVel.copy(newVelocity);
                 this.state = 'BALL_HIT';
-                SoundEngine.playSynthNote(800, 0.2, 'sawtooth'); // Hit sound
-                // Flash effect can be added here
+                document.getElementById('game-status').innerText = "SHOT!";
+                document.getElementById('game-status').className = "text-green-500 font-bold";
+                SoundEngine.playSynthNote(800, 0.2, 'sawtooth'); 
             }
         };
 
-        // --- GESTURE ANALYZER (Advanced Processing) ---
+        // --- GESTURE ANALYZER ---
         const GestureAnalyzer = {
             history: [],
-            maxHistory: 5, // Keep last 5 frames (~100ms)
-            
-            // Outputs
+            maxHistory: 5,
             velocity: new THREE.Vector3(0,0,0),
             speed: 0,
             
-            update(x, y, isFist) {
+            update(x, y) {
                 const now = Date.now();
-                
-                // 1. Add to history
-                this.history.push({ x, y, t: now, isFist });
+                this.history.push({ x, y, t: now });
                 if (this.history.length > this.maxHistory) this.history.shift();
 
-                // 2. Calculate Velocity
                 if (this.history.length > 1) {
                     const newest = this.history[this.history.length - 1];
                     const oldest = this.history[0];
-                    const dt = (newest.t - oldest.t) / 1000; // Seconds
+                    const dt = (newest.t - oldest.t) / 1000; 
                     
                     if (dt > 0) {
-                        // Invert Y because screen Y is top-down
-                        const dx = (newest.x - oldest.x) * 20; // Scale to world units roughly
-                        const dy = -(newest.y - oldest.y) * 10; 
-                        
-                        this.velocity.set(dx / dt, dy / dt, 0); // Z velocity inferred?
-                        
-                        // Fake Z velocity based on Y movement for throwing
-                        if (currentMode === 'cricket' && myRole === 'bowler') {
-                           this.velocity.z = Math.abs(this.velocity.y) * -0.5; // Throwing 'into' screen
-                        }
-                        
+                        // Map 0-1 coords to rough world units
+                        const dx = (newest.x - oldest.x) * 30; 
+                        const dy = -(newest.y - oldest.y) * 15; 
+                        this.velocity.set(dx / dt, dy / dt, 0); 
                         this.speed = this.velocity.length();
                     }
                 }
 
-                // 3. Update UI
                 const fill = document.getElementById('velocity-fill');
-                if (fill) {
-                    const pct = Math.min(100, this.speed * 2); // Scale for visual
+                if (fill && currentMode === 'cricket') {
+                    const pct = Math.min(100, this.speed * 2); 
                     fill.style.width = pct + '%';
                     document.getElementById('velocity-val').innerText = this.speed.toFixed(1);
-                }
-
-                // 4. Detect "Throw" (Bowler: Fist -> Open && High Speed)
-                if (myRole === 'bowler' && currentMode === 'cricket') {
-                    const wasFist = this.history[0].isFist;
-                    const isNowOpen = !isFist;
                     
-                    // THRESHOLD: Speed > 15
-                    if (wasFist && isNowOpen && this.speed > 10) {
-                        this.triggerBowl();
-                    }
-                }
-            },
-
-            triggerBowl() {
-                if (!gameId) return;
-                
-                const startPos = new THREE.Vector3(-6, -2, 10); // Fixed bowl start X/Y roughly
-                // Use calculated velocity but clamped
-                const throwVel = this.velocity.clone().multiplyScalar(0.08); // Tune physics scale
-                throwVel.z = -1.5; // Force forward direction
-                
-                CricketEngine.bowl(startPos, throwVel);
-                
-                // Sync Event
-                if (db) {
-                     db.collection('artifacts').doc(appId).collection('public').doc('data').collection('cricket_games').doc(gameId).update({
-                        lastEvent: {
-                            type: 'BOWL',
-                            vel: { x: throwVel.x, y: throwVel.y, z: throwVel.z },
-                            pos: { x: startPos.x, y: startPos.y, z: startPos.z },
-                            time: Date.now()
-                        }
-                     });
+                    // Visual feedback on bar color
+                    if(this.speed > 8) fill.style.backgroundColor = '#4ade80'; // Green for good power
+                    else fill.style.backgroundColor = '#a855f7';
                 }
             }
         };
 
-        // --- MULTIPLAYER LOGIC ---
-
-        function generateCode() { return Math.random().toString(36).substring(2, 6).toUpperCase(); }
-
-        async function createGame() {
-            if (!currentUser || !db) return alert("Multiplayer unavailable.");
-            gameId = generateCode();
-            myRole = 'batter'; 
-            
-            await db.collection('artifacts').doc(appId).collection('public').doc('data').collection('cricket_games').doc(gameId).set({
-                host: currentUser.uid,
-                status: 'waiting',
-                created: firebase.firestore.FieldValue.serverTimestamp(),
-                batterHand: { x: 0.5, y: 0.5 },
-                bowlerHand: { x: 0.5, y: 0.5 },
-                lastEvent: null // For discrete events like hits/bowls
-            });
-
-            setupGameUI(gameId, 'BATTER');
-            listenToGame();
-            setMode('cricket');
-        }
-
-        async function joinGame() {
-            if (!currentUser || !db) return alert("Multiplayer unavailable.");
-            const code = document.getElementById('join-code').value.toUpperCase();
-            if (code.length !== 4) return alert("Enter 4-digit code");
-            
-            gameId = code;
-            myRole = 'bowler'; 
-
-            const gameRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('cricket_games').doc(gameId);
-            const doc = await gameRef.get();
-
-            if (doc.exists) {
-                await gameRef.update({ status: 'playing', joiner: currentUser.uid });
-                setupGameUI(gameId, 'BOWLER');
-                listenToGame();
-                setMode('cricket');
-            } else {
-                alert("Game not found");
-                gameId = null;
-            }
-        }
-
-        function setupGameUI(code, roleLabel) {
-            document.getElementById('lobby-controls').classList.add('hidden');
-            document.getElementById('game-controls').classList.remove('hidden');
-            document.getElementById('room-code-display').innerText = code;
-            const badge = document.getElementById('my-role-badge');
-            badge.innerText = roleLabel;
-            badge.className = 'role-badge ' + (roleLabel === 'BATTER' ? 'role-batter' : 'role-bowler');
-            
-            const instr = document.getElementById('game-instruction');
-            if (roleLabel === 'BATTER') instr.innerHTML = "Wave PALM to hit. Wait for throw.";
-            else instr.innerHTML = "Fist to hold. Move fast & Open to throw.";
-        }
-
-        let remoteHandX = 0.5, remoteHandY = 0.5;
-
-        function listenToGame() {
-            if (unsubscribeGame) unsubscribeGame();
-            if (!db || !gameId) return;
-            const gameRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('cricket_games').doc(gameId);
-
-            unsubscribeGame = gameRef.onSnapshot((doc) => {
-                if (!doc.exists) return;
-                const data = doc.data();
-                
-                // Sync Hands (Lerp target)
-                if (myRole === 'batter' && data.bowlerHand) {
-                    remoteHandX = data.bowlerHand.x;
-                    remoteHandY = data.bowlerHand.y;
-                } else if (myRole === 'bowler' && data.batterHand) {
-                    remoteHandX = data.batterHand.x;
-                    remoteHandY = data.batterHand.y;
-                }
-
-                // Handle Game Events (The Physics Sync)
-                if (data.lastEvent && data.lastEvent.time > (window.lastEventTime || 0)) {
-                    window.lastEventTime = data.lastEvent.time;
-                    handleGameEvent(data.lastEvent);
-                }
-            });
-        }
-
-        function handleGameEvent(event) {
-            // If I am Batter, I receive 'BOWL' events
-            if (myRole === 'batter' && event.type === 'BOWL') {
-                const startPos = new THREE.Vector3(event.pos.x, event.pos.y, event.pos.z);
-                const vel = new THREE.Vector3(event.vel.x, event.vel.y, event.vel.z);
-                CricketEngine.bowl(startPos, vel);
-            }
-            // If I am Bowler, I receive 'HIT' events
-            else if (myRole === 'bowler' && event.type === 'HIT') {
-                const vel = new THREE.Vector3(event.vel.x, event.vel.y, event.vel.z);
-                CricketEngine.hit(vel);
-            }
-        }
-
-        let lastSyncTime = 0;
-        function syncMyHand(x, y) {
-            if (!gameId || !db) return;
-            const now = Date.now();
-            if (now - lastSyncTime < 100) return; // Throttle
-            lastSyncTime = now;
-
-            const updateData = {};
-            if (myRole === 'batter') updateData.batterHand = { x, y };
-            else updateData.bowlerHand = { x, y };
-            
-            db.collection('artifacts').doc(appId).collection('public').doc('data').collection('cricket_games').doc(gameId).update(updateData).catch(e=>{});
-        }
-
         // --- SOUND ENGINE ---
         const SoundEngine = {
-            ctx: null,
-            muted: true,
+            ctx: null, muted: true,
             init() { if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)(); },
             toggle() {
-                this.init();
-                this.muted = !this.muted;
+                this.init(); this.muted = !this.muted;
                 const btn = document.getElementById('audio-toggle');
-                if (this.muted) {
-                    btn.classList.add('muted'); btn.classList.remove('active');
-                } else {
-                    btn.classList.remove('muted'); btn.classList.add('active');
-                    this.playSynthNote(660, 0.1, 'sine');
-                }
+                if (this.muted) { btn.classList.add('muted'); btn.classList.remove('active'); } 
+                else { btn.classList.remove('muted'); btn.classList.add('active'); this.playSynthNote(660, 0.1, 'sine'); }
             },
             playSynthNote(freq, duration, type='sine') {
                 if (this.muted || !this.ctx) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                osc.type = type;
-                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                const osc = this.ctx.createOscillator(); const gain = this.ctx.createGain();
+                osc.type = type; osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
                 gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
                 gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
                 osc.connect(gain); gain.connect(this.ctx.destination);
@@ -615,7 +347,6 @@
         let particleScale = 1.0;
         let time = 0;
         
-        // Hand State
         let handDetected = false;
         let isFist = false;
         let targetRotationX = 0, targetRotationY = 0;
@@ -669,7 +400,6 @@
             geometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
             geometry.setAttribute('size', new THREE.BufferAttribute(sizes, 1));
             
-            // Texture generation
             const canvas = document.createElement('canvas');
             canvas.width = 32; canvas.height = 32;
             const ctx = canvas.getContext('2d');
@@ -758,89 +488,72 @@
 
         // --- CRICKET RENDERER ---
         function generateCricketDestinations() {
-            const wood = {r:0.85, g:0.70, b:0.45}; // Lighter, clearer wood
-            const red = {r:0.95, g:0.1, b:0.1};   // Bright cricket ball red
-            const black = {r:0.15, g:0.15, b:0.2}; // Rubber grip
-            const stumpWood = {r:0.9, g:0.8, b:0.5}; // Stump color
+            const wood = {r:0.85, g:0.70, b:0.45}; 
+            const red = {r:0.95, g:0.1, b:0.1};   
+            const black = {r:0.15, g:0.15, b:0.2}; 
+            const stumpWood = {r:0.9, g:0.8, b:0.5}; 
+            const grassColor = {r:0.3, g:0.6, b:0.3};
+            const pitchColor = {r:0.75, g:0.7, b:0.55}; // Tan/Dirt
 
-            // Calculate Bat Position
-            let batX = 4, batY = -2, batZ = 0;
-            let batRotZ = -0.2; // Resting angle
-            
-            // Bat logic
-            if (currentMode === 'cricket') {
-                if (myRole === 'batter') {
-                    // Batter controls Bat
-                    batX += (targetRotationY * 8);
-                    batY += (-targetRotationX * 8);
-                    batRotZ = -targetRotationY * 0.8; 
-                } else {
-                    // Bowler sees remote batter
-                    batX += ((1-remoteHandX)-0.5) * 15;
-                    batY += (remoteHandY-0.5) * -15;
-                }
-            }
+            // Bat Position (Always Local Hand)
+            let batX = 4 + (targetRotationY * 8);
+            let batY = -2 + (-targetRotationX * 8);
+            let batZ = 0;
+            let batRotZ = -0.2 - (targetRotationY * 0.8);
 
-            // Calculate Ball Position
-            let ballX = -6, ballY = -5, ballZ = 5;
+            // Ball Position (Always AI/Physics)
+            let ballX = CricketEngine.ballPos.x;
+            let ballY = CricketEngine.ballPos.y;
+            let ballZ = CricketEngine.ballPos.z;
             
-            if (CricketEngine.state === 'IDLE') {
-                // Ball attached to hand
-                if (myRole === 'bowler') {
-                     ballX += -(targetRotationY * 20);
-                     ballY += -(targetRotationX * 15);
-                } else {
-                     ballX += -((1-remoteHandX)-0.5) * 20;
-                     ballY += -(remoteHandY-0.5) * 15;
-                }
-            } else {
-                // Ball in physics flight
-                ballX = CricketEngine.ballPos.x;
-                ballY = CricketEngine.ballPos.y;
-                ballZ = CricketEngine.ballPos.z;
-            }
-            
-            // BAT COLLISION DETECTION (Local for Batter)
-            if (myRole === 'batter' && CricketEngine.state === 'BALL_FLYING') {
+            // Bat Hit Detection
+            if (CricketEngine.state === 'BALL_FLYING') {
                 const dist = Math.sqrt(Math.pow(batX - ballX, 2) + Math.pow(batY - ballY, 2) + Math.pow(batZ - ballZ, 2));
-                // Hit check: Distance < 5 AND High Swing Velocity
+                // Hit Condition: Close Distance + High Swing Speed
                 if (dist < 6 && GestureAnalyzer.speed > 8) {
-                    // HIT!
-                    const hitVel = new THREE.Vector3(5, 5, -5); // Default smash away
-                    // Add directional influence based on swing later
-                    hitVel.add(GestureAnalyzer.velocity.clone().multiplyScalar(0.2));
-                    
+                    const hitVel = new THREE.Vector3(0, 5, -20); // Drive forward
+                    // Add directionality from swing
+                    hitVel.x += GestureAnalyzer.velocity.x * 0.5;
+                    hitVel.y += Math.abs(GestureAnalyzer.velocity.y) * 0.5;
                     CricketEngine.hit(hitVel);
-                    
-                    // Sync Hit
-                    if(gameId && db) {
-                         db.collection('artifacts').doc(appId).collection('public').doc('data').collection('cricket_games').doc(gameId).update({
-                            lastEvent: {
-                                type: 'HIT',
-                                vel: { x: hitVel.x, y: hitVel.y, z: hitVel.z },
-                                time: Date.now()
-                            }
-                         });
-                    }
                 }
             }
 
             let pIdx = 0;
 
-            // 1. BAT BLADE (Rectangular Prism with rounded back)
-            // Dimensions: Width ~3.5, Height ~12
-            const bladeCount = 3500;
+            // 1. PITCH (The Ground) - ~1500 particles
+            const pitchCount = 1500;
+            const pitchWidth = 8;
+            const pitchLength = 60; // -10 to +50
+            for (let i = 0; i < pitchCount; i++) {
+                const i3 = (pIdx + i) * 3;
+                const x = (Math.random() - 0.5) * pitchWidth;
+                const z = (Math.random() * pitchLength) - 10; // Start behind stumps (-10) go forward
+                const y = -10.5; // Slightly below stumps
+
+                destinations[i3] = x;
+                destinations[i3+1] = y;
+                destinations[i3+2] = z;
+                
+                // Color strip
+                if (Math.abs(x) < 3.5) {
+                    colors[i3] = pitchColor.r; colors[i3+1] = pitchColor.g; colors[i3+2] = pitchColor.b;
+                } else {
+                    colors[i3] = grassColor.r; colors[i3+1] = grassColor.g; colors[i3+2] = grassColor.b;
+                }
+            }
+            pIdx += pitchCount;
+
+            // 2. BAT BLADE (Rectangular Prism with rounded back)
+            const bladeCount = 2500;
             for (let i = 0; i < bladeCount; i++) {
                 const i3 = (pIdx + i) * 3;
                 
                 const lx = (Math.random() - 0.5) * 3.5;
                 const ly = (Math.random() - 0.5) * 12;
-                
-                // Curve the back: Z depends slightly on X to make it convex
                 const curve = (1 - Math.pow((lx / 1.75), 2)) * 0.4;
                 const lz = (Math.random() - 0.5) * 0.5 + curve;
 
-                // Rotate & Translate
                 const rx = lx * Math.cos(batRotZ) - ly * Math.sin(batRotZ);
                 const ry = lx * Math.sin(batRotZ) + ly * Math.cos(batRotZ);
                 
@@ -851,18 +564,17 @@
             }
             pIdx += bladeCount;
 
-            // 2. BAT HANDLE (Cylinder)
-            const handleCount = 1000;
+            // 3. BAT HANDLE
+            const handleCount = 800;
             for (let i = 0; i < handleCount; i++) {
                 const i3 = (pIdx + i) * 3;
-                
                 const h = (Math.random() - 0.5) * 5; 
                 const ang = Math.random() * 6.28;
                 const r = Math.random() * 0.4;
                 
                 const lx = r * Math.cos(ang);
-                const ly = h + 8.5; // Sit on top of blade (6 + 2.5)
-                const lz = r * Math.sin(ang) + 0.2; // Slightly forward
+                const ly = h + 8.5; 
+                const lz = r * Math.sin(ang) + 0.2; 
 
                 const rx = lx * Math.cos(batRotZ) - ly * Math.sin(batRotZ);
                 const ry = lx * Math.sin(batRotZ) + ly * Math.cos(batRotZ);
@@ -874,13 +586,11 @@
             }
             pIdx += handleCount;
 
-            // 3. BALL (Dense Sphere)
-            const ballCount = 1500;
+            // 4. BALL (Dense Sphere)
+            const ballCount = 1200;
             for (let i = 0; i < ballCount; i++) {
                 const i3 = (pIdx + i) * 3;
-                
-                // Cube root for uniform distribution inside sphere
-                const r = Math.cbrt(Math.random()) * 1.3; 
+                const r = Math.cbrt(Math.random()) * 1.0; // Slightly smaller ball
                 const theta = Math.random() * 6.28;
                 const phi = Math.acos(2 * Math.random() - 1);
                 
@@ -889,19 +599,19 @@
                 destinations[i3+2] = r * Math.cos(phi) + ballZ;
                 
                 if (CricketEngine.state === 'BALL_HIT') {
-                     colors[i3] = 1; colors[i3+1] = 1; colors[i3+2] = 1; // Flash white
+                     colors[i3] = 1; colors[i3+1] = 1; colors[i3+2] = 1; 
                 } else {
                      colors[i3] = red.r; colors[i3+1] = red.g; colors[i3+2] = red.b;
                 }
             }
             pIdx += ballCount;
 
-            // 4. STUMPS (3 distinct cylinders)
+            // 5. STUMPS
             const stumpCount = count - pIdx; 
             const partsPerStump = Math.floor(stumpCount / 3);
             
             for (let s = 0; s < 3; s++) {
-                const xOff = (s - 1) * 1.5; // -1.5, 0, 1.5
+                const xOff = (s - 1) * 1.5; 
                 for (let k = 0; k < partsPerStump; k++) {
                     const idx = pIdx + s*partsPerStump + k;
                     if(idx >= count) break;
@@ -911,11 +621,10 @@
                     const ang = Math.random() * 6.28;
                     const r = Math.random() * 0.35;
 
-                    destinations[i3] = r * Math.cos(ang) + xOff - 6; // Base X (-6)
-                    destinations[i3+1] = h - 8; // Ground level Y (-8)
-                    destinations[i3+2] = r * Math.sin(ang) - 12; // Far back Z (-12)
+                    destinations[i3] = r * Math.cos(ang) + xOff - 2; // Adjusted X to be more central behind bat
+                    destinations[i3+1] = h - 8; 
+                    destinations[i3+2] = r * Math.sin(ang) - 5; // Behind Bat Z
 
-                    // Bails hint
                     if (h > 11.5) {
                         colors[i3] = 0.6; colors[i3+1] = 0.5; colors[i3+2] = 0.3;
                     } else {
@@ -923,7 +632,6 @@
                     }
                 }
             }
-
             geometry.attributes.color.needsUpdate = true;
         }
 
@@ -932,7 +640,6 @@
             requestAnimationFrame(animate);
             time += 0.01;
             
-            // Updates
             CricketEngine.update();
             
             const smoothing = 0.05;
@@ -941,16 +648,14 @@
                 particles.rotation.y += (targetRotationY - particles.rotation.y) * smoothing;
                 if (!handDetected) particles.rotation.y += 0.002;
             } else {
-                // Stabilize camera for gameplay
+                // Fixed Camera Angle for Cricket
                 particles.rotation.x += (0 - particles.rotation.x) * 0.1;
                 particles.rotation.y += (0 - particles.rotation.y) * 0.1;
                 generateCricketDestinations();
             }
 
-            // Particle Updates
             const currentPos = geometry.attributes.position.array;
             
-            // Logic for Modes
             if (currentMode === 'fireworks') {
                 fireworkResetTime++;
                 for(let i=0; i<count; i++) {
@@ -958,12 +663,11 @@
                     currentPos[i3] += fireworkVelocities[i3]*particleScale;
                     currentPos[i3+1] += fireworkVelocities[i3+1]*particleScale;
                     currentPos[i3+2] += fireworkVelocities[i3+2]*particleScale;
-                    fireworkVelocities[i3+1] -= 0.005; // Gravity
-                    fireworkVelocities[i3] *= 0.98; // Drag
+                    fireworkVelocities[i3+1] -= 0.005; 
+                    fireworkVelocities[i3] *= 0.98; 
                 }
                 if(fireworkResetTime > 250) { initFireworks(); SoundEngine.playSynthNote(200, 0.5, 'noise'); }
             } else if (isFist && currentMode !== 'cricket') {
-                // Gravity Well
                 for(let i=0; i<count; i++) {
                     const i3=i*3;
                     currentPos[i3] += (0-currentPos[i3])*0.1;
@@ -971,7 +675,6 @@
                     currentPos[i3+2] += (0-currentPos[i3+2])*0.1;
                 }
             } else {
-                // Morph
                 const speed = 0.08;
                 for(let i=0; i<count; i++) {
                     const i3=i*3;
@@ -993,6 +696,14 @@
             document.querySelectorAll('.btn-mode').forEach(b => b.classList.remove('active'));
             if(document.getElementById('btn-'+mode)) document.getElementById('btn-'+mode).classList.add('active');
             
+            // Toggle HUD
+            if(mode === 'cricket') {
+                document.getElementById('cricket-hud').classList.remove('hidden');
+                CricketEngine.reset();
+            } else {
+                document.getElementById('cricket-hud').classList.add('hidden');
+            }
+            
             if (mode==='solar') generateSolarSystemDestinations();
             else if (mode==='heart') generateHeartDestinations();
             else if (mode==='flower') generateFlowerDestinations();
@@ -1001,7 +712,6 @@
             else if (mode==='spiral') generateSpiralDestinations();
             else if (mode==='grid') generateGridDestinations();
             else if (mode==='cricket') {
-                CricketEngine.reset();
                 generateCricketDestinations();
             }
         }
@@ -1030,28 +740,23 @@
                 tips.forEach(i => avgDist += Math.sqrt(Math.pow(lm[i].x-wrist.x,2)+Math.pow(lm[i].y-wrist.y,2)));
                 avgDist /= 4;
                 
-                // Fist Logic
                 isFist = avgDist < 0.2; 
                 if (isFist) fistIndicator.classList.add('active');
                 else fistIndicator.classList.remove('active');
 
-                // Pinch for Scale (non-cricket)
                 if (!isFist && currentMode !== 'cricket') {
                     const pd = Math.sqrt(Math.pow(lm[4].x-lm[8].x,2)+Math.pow(lm[4].y-lm[8].y,2));
                     let s = (pd-0.02)*5; s = Math.max(0.1, Math.min(3, s));
                     particleScale += (s-particleScale)*0.1;
                 } else if (currentMode === 'cricket') {
-                    particleScale = 1.0; // Reset scale for game
+                    particleScale = 1.0; 
                 }
 
-                // Positional Logic
                 const hx = lm[9].x; const hy = lm[9].y;
                 targetRotationY = ((1-hx)-0.5)*4;
                 targetRotationX = (hy-0.5)*4;
 
-                // Sync & Physics
-                if (gameId) syncMyHand(hx, hy);
-                GestureAnalyzer.update(hx, hy, isFist);
+                GestureAnalyzer.update(hx, hy);
 
             } else {
                 handDetected = false;
