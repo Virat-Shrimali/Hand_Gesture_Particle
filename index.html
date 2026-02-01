@@ -243,37 +243,66 @@
 
         // Safe Initialization
         try {
-            if (typeof __firebase_config !== 'undefined') {
+            // 1. Check if Firebase SDK loaded
+            if (typeof firebase === 'undefined') {
+                document.getElementById('mp-status').innerText = "SDK ERROR";
+                document.getElementById('mp-status').classList.add('text-red-500');
+                console.error("Firebase SDK not loaded from CDN");
+            }
+            // 2. Check for Config Injection
+            else if (typeof __firebase_config !== 'undefined') {
+                document.getElementById('mp-status').innerText = "CONNECTING...";
+                document.getElementById('mp-status').className = "text-[10px] text-yellow-500 animate-pulse";
+
                 const firebaseConfig = JSON.parse(__firebase_config);
-                app = firebase.initializeApp(firebaseConfig);
+                
+                // Prevent duplicate initialization
+                if (!firebase.apps.length) {
+                    app = firebase.initializeApp(firebaseConfig);
+                } else {
+                    app = firebase.app();
+                }
+                
                 auth = firebase.auth();
                 db = firebase.firestore();
 
-                // Auth immediately
+                // 3. Authenticate
                 const initAuth = async () => {
-                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await auth.signInWithCustomToken(__initial_auth_token);
-                     } else {
-                        await auth.signInAnonymously();
-                     }
+                    try {
+                        if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                            await auth.signInWithCustomToken(__initial_auth_token);
+                        } else {
+                            await auth.signInAnonymously();
+                        }
+                    } catch (err) {
+                        console.error("Authentication failed:", err);
+                        document.getElementById('mp-status').innerText = "AUTH FAIL";
+                        document.getElementById('mp-status').className = "text-[10px] text-red-500";
+                    }
                 };
                 initAuth();
 
+                // 4. Listen for User
                 auth.onAuthStateChanged((user) => {
                     currentUser = user;
                     if (user) {
                         document.getElementById('mp-status').innerText = "ONLINE";
-                        document.getElementById('mp-status').classList.add('text-green-500');
+                        document.getElementById('mp-status').className = "text-[10px] text-green-500 font-bold";
+                    } else {
+                        document.getElementById('mp-status').innerText = "DISCONNECTED";
+                        document.getElementById('mp-status').className = "text-[10px] text-gray-500";
                     }
                 });
             } else {
-                // Fallback for when config is missing
+                // Fallback for when config is missing (e.g. local file)
                 console.warn("Firebase config not found. Multiplayer disabled.");
                 document.getElementById('mp-status').innerText = "OFFLINE (No Config)";
                 document.getElementById('mp-status').classList.add('text-red-500');
             }
         } catch (e) {
-            console.error("Firebase init failed:", e);
+            console.error("Firebase init crash:", e);
+            document.getElementById('mp-status').innerText = "ERROR";
+            document.getElementById('mp-status').classList.add('text-red-500');
         }
 
         // --- MULTIPLAYER LOGIC ---
@@ -284,7 +313,7 @@
 
         async function createGame() {
             if (!currentUser || !db) {
-                alert("Multiplayer unavailable: Connection failed.");
+                alert("Multiplayer unavailable: Check status indicator.");
                 return;
             }
             gameId = generateCode();
@@ -308,7 +337,7 @@
 
         async function joinGame() {
             if (!currentUser || !db) {
-                alert("Multiplayer unavailable: Connection failed.");
+                alert("Multiplayer unavailable: Check status indicator.");
                 return;
             }
             const code = document.getElementById('join-code').value.toUpperCase();
