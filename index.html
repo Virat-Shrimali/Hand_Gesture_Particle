@@ -234,34 +234,47 @@
 
     <script>
         // --- FIREBASE CONFIG & INIT ---
-        const firebaseConfig = JSON.parse(__firebase_config);
-        const app = firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-
+        let app, auth, db;
         let currentUser = null;
         let gameId = null;
         let myRole = null; // 'batter' or 'bowler'
         let unsubscribeGame = null;
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
 
-        // Auth immediately
-        const initAuth = async () => {
-             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                await auth.signInWithCustomToken(__initial_auth_token);
-             } else {
-                await auth.signInAnonymously();
-             }
-        };
-        initAuth();
+        // Safe Initialization
+        try {
+            if (typeof __firebase_config !== 'undefined') {
+                const firebaseConfig = JSON.parse(__firebase_config);
+                app = firebase.initializeApp(firebaseConfig);
+                auth = firebase.auth();
+                db = firebase.firestore();
 
-        auth.onAuthStateChanged((user) => {
-            currentUser = user;
-            if (user) {
-                document.getElementById('mp-status').innerText = "ONLINE";
-                document.getElementById('mp-status').classList.add('text-green-500');
+                // Auth immediately
+                const initAuth = async () => {
+                     if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await auth.signInWithCustomToken(__initial_auth_token);
+                     } else {
+                        await auth.signInAnonymously();
+                     }
+                };
+                initAuth();
+
+                auth.onAuthStateChanged((user) => {
+                    currentUser = user;
+                    if (user) {
+                        document.getElementById('mp-status').innerText = "ONLINE";
+                        document.getElementById('mp-status').classList.add('text-green-500');
+                    }
+                });
+            } else {
+                // Fallback for when config is missing
+                console.warn("Firebase config not found. Multiplayer disabled.");
+                document.getElementById('mp-status').innerText = "OFFLINE (No Config)";
+                document.getElementById('mp-status').classList.add('text-red-500');
             }
-        });
+        } catch (e) {
+            console.error("Firebase init failed:", e);
+        }
 
         // --- MULTIPLAYER LOGIC ---
 
@@ -270,7 +283,10 @@
         }
 
         async function createGame() {
-            if (!currentUser) return;
+            if (!currentUser || !db) {
+                alert("Multiplayer unavailable: Connection failed.");
+                return;
+            }
             gameId = generateCode();
             myRole = 'batter'; // Host is Batter
             
@@ -291,7 +307,10 @@
         }
 
         async function joinGame() {
-            if (!currentUser) return;
+            if (!currentUser || !db) {
+                alert("Multiplayer unavailable: Connection failed.");
+                return;
+            }
             const code = document.getElementById('join-code').value.toUpperCase();
             if (code.length !== 4) return alert("Enter 4-digit code");
             
@@ -340,6 +359,7 @@
 
         function listenToGame() {
             if (unsubscribeGame) unsubscribeGame();
+            if (!db || !gameId) return;
             const gameRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('cricket_games').doc(gameId);
 
             unsubscribeGame = gameRef.onSnapshot((doc) => {
@@ -364,7 +384,7 @@
         }
 
         function syncMyState(x, y, isActive) {
-            if (!gameId || !currentUser) return;
+            if (!gameId || !currentUser || !db) return;
             
             const now = Date.now();
             if (now - lastSyncTime < 100) return; // Throttle to 100ms
