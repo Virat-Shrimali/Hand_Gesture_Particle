@@ -30,7 +30,7 @@
             top: 20px;
             left: 20px;
             z-index: 10;
-            width: 320px;
+            width: 340px;
             pointer-events: none; /* Allow clicks to pass through to canvas where UI isn't */
         }
         
@@ -91,6 +91,27 @@
         .audio-btn:hover { background: rgba(255,255,255,0.3); }
         .audio-btn.muted { color: #ef4444; }
         .audio-btn.active { color: #4ade80; }
+        .audio-btn.active i { animation: pulse-icon 1s infinite; }
+
+        @keyframes pulse-icon {
+            0% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+            100% { transform: scale(1); }
+        }
+        
+        .gesture-indicator {
+            display: inline-block;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            font-weight: bold;
+            background: rgba(255,255,255,0.1);
+            margin-left: 8px;
+            opacity: 0;
+            transition: opacity 0.2s;
+        }
+        .gesture-indicator.active { opacity: 1; background: #ef4444; }
     </style>
 </head>
 <body>
@@ -104,17 +125,20 @@
             <div class="flex justify-between items-start mb-4">
                 <div>
                     <h1 class="text-xl font-bold mb-1 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Particle Engine</h1>
-                    <p class="text-xs text-gray-400">Interactive 3D Formations</p>
+                    <p class="text-xs text-gray-400">Solar, Audio & Hand Physics</p>
                 </div>
-                <button id="audio-toggle" class="audio-btn muted" onclick="toggleAudio()" title="Toggle Sound">
+                <button id="audio-toggle" class="audio-btn muted" onclick="toggleAudio()" title="Toggle Techno">
                     <i class="fas fa-volume-mute"></i>
                 </button>
             </div>
 
             <!-- Status -->
-            <div class="flex items-center mb-4 text-xs bg-black/30 p-2 rounded-lg border border-white/5">
-                <div id="camera-status-dot" class="status-dot bg-yellow-500"></div>
-                <span id="camera-status-text" class="text-gray-300">Initializing Vision...</span>
+            <div class="flex items-center justify-between mb-4 text-xs bg-black/30 p-2 rounded-lg border border-white/5">
+                <div class="flex items-center">
+                    <div id="camera-status-dot" class="status-dot bg-yellow-500"></div>
+                    <span id="camera-status-text" class="text-gray-300">Initializing Vision...</span>
+                </div>
+                <span id="fist-indicator" class="gesture-indicator">FIST DETECTED</span>
             </div>
 
             <!-- Controls -->
@@ -122,20 +146,20 @@
                 <div>
                     <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 block">Shape Template</label>
                     <div class="grid grid-cols-3 gap-2">
-                        <button onclick="setMode('heart')" id="btn-heart" class="btn-mode active py-2 rounded-md">Heart</button>
+                        <button onclick="setMode('solar')" id="btn-solar" class="btn-mode active py-2 rounded-md">Solar</button>
+                        <button onclick="setMode('heart')" id="btn-heart" class="btn-mode py-2 rounded-md">Heart</button>
                         <button onclick="setMode('flower')" id="btn-flower" class="btn-mode py-2 rounded-md">Flower</button>
-                        <button onclick="setMode('fireworks')" id="btn-fireworks" class="btn-mode py-2 rounded-md">Burst</button>
                         <button onclick="setMode('sphere')" id="btn-sphere" class="btn-mode py-2 rounded-md">Sphere</button>
                         <button onclick="setMode('spiral')" id="btn-spiral" class="btn-mode py-2 rounded-md">Spiral</button>
-                        <button onclick="setMode('grid')" id="btn-grid" class="btn-mode py-2 rounded-md">Grid</button>
+                        <button onclick="setMode('fireworks')" id="btn-fireworks" class="btn-mode py-2 rounded-md">Burst</button>
                     </div>
                 </div>
 
                 <div>
                     <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 block">Base Color</label>
                     <div class="flex items-center gap-3">
-                        <input type="color" id="color-picker" value="#ff3366" class="h-8 w-8 rounded cursor-pointer border-none bg-transparent">
-                        <span class="text-xs text-gray-400" id="color-hex">#FF3366</span>
+                        <input type="color" id="color-picker" value="#fbbf24" class="h-8 w-8 rounded cursor-pointer border-none bg-transparent">
+                        <span class="text-xs text-gray-400" id="color-hex">#FBBF24</span>
                     </div>
                 </div>
 
@@ -152,11 +176,11 @@
         </div>
 
         <div class="glass-panel">
-            <h2 class="text-xs font-bold text-gray-300 mb-2 uppercase">Instructions</h2>
+            <h2 class="text-xs font-bold text-gray-300 mb-2 uppercase">Profound Gestures</h2>
             <ul class="text-xs text-gray-400 space-y-1.5 list-disc pl-4">
-                <li><strong class="text-white">Pinch</strong> thumb & index to resize.</li>
-                <li><strong class="text-white">Move Hand</strong> to rotate view.</li>
-                <li>Or use mouse if no camera.</li>
+                <li><strong class="text-white">Pinch</strong> to scale universe.</li>
+                <li><strong class="text-white">Make a Fist</strong> to create a Gravity Well (Black Hole).</li>
+                <li><strong class="text-white">Open Hand</strong> to explode/restore.</li>
             </ul>
         </div>
     </div>
@@ -165,10 +189,14 @@
     <div id="canvas-container"></div>
 
     <script>
-        // --- SOUND ENGINE (Web Audio API) ---
+        // --- SOUND ENGINE (Techno Generator) ---
         const SoundEngine = {
             ctx: null,
             muted: true,
+            nextNoteTime: 0,
+            tempo: 128,
+            timerID: null,
+            step: 0, // 0-15 (16 step sequencer)
 
             init() {
                 if (!this.ctx) {
@@ -179,8 +207,14 @@
             toggle() {
                 this.init();
                 this.muted = !this.muted;
-                if (!this.muted && this.ctx.state === 'suspended') {
-                    this.ctx.resume();
+                if (!this.muted) {
+                    if(this.ctx.state === 'suspended') this.ctx.resume();
+                    this.nextNoteTime = this.ctx.currentTime;
+                    this.scheduler();
+                    // Feedback ping
+                    this.playSynthNote(660, 0.1, 'sine');
+                } else {
+                    clearTimeout(this.timerID);
                 }
                 
                 // Update UI Icon
@@ -193,70 +227,122 @@
                 } else {
                     btn.classList.remove('muted');
                     btn.classList.add('active');
-                    icon.className = 'fas fa-volume-up';
-                    this.playTone(600, 'sine', 0.1); // feedback beep
+                    icon.className = 'fas fa-music';
                 }
             },
 
-            playTone(freq, type, duration) {
-                if (this.muted || !this.ctx) return;
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
+            scheduler() {
+                if(this.muted) return;
                 
-                osc.type = type;
-                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
-                
-                gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
-                
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                
-                osc.start();
-                osc.stop(this.ctx.currentTime + duration);
+                const secondsPerBeat = 60.0 / this.tempo;
+                const scheduleAheadTime = 0.1;
+
+                while (this.nextNoteTime < this.ctx.currentTime + scheduleAheadTime) {
+                    this.playStep(this.nextNoteTime, this.step);
+                    this.nextNoteTime += (secondsPerBeat / 4); // 16th notes
+                    this.step = (this.step + 1) % 16;
+                }
+                this.timerID = setTimeout(() => this.scheduler(), 25);
             },
 
-            playMorph() {
-                if (this.muted || !this.ctx) return;
-                // Sci-fi sweep
-                const osc = this.ctx.createOscillator();
-                const gain = this.ctx.createGain();
-                
-                osc.type = 'sine';
-                osc.frequency.setValueAtTime(200, this.ctx.currentTime);
-                osc.frequency.exponentialRampToValueAtTime(800, this.ctx.currentTime + 0.3);
-                
-                gain.gain.setValueAtTime(0.05, this.ctx.currentTime);
-                gain.gain.linearRampToValueAtTime(0, this.ctx.currentTime + 0.3);
-                
-                osc.connect(gain);
-                gain.connect(this.ctx.destination);
-                
-                osc.start();
-                osc.stop(this.ctx.currentTime + 0.3);
+            playStep(time, step) {
+                // Kick: Steps 0, 4, 8, 12
+                if (step % 4 === 0) {
+                    this.playKick(time);
+                }
+                // Off-beat Hats: Steps 2, 6, 10, 14
+                if (step % 4 === 2) {
+                    this.playHat(time);
+                }
+                // Bass drone on 1st beat
+                if (step === 0) {
+                    this.playBass(time);
+                }
+                // Random Sci-fi bleeps on random 16ths
+                if (Math.random() > 0.85) {
+                    const freq = [440, 554, 659, 880][Math.floor(Math.random()*4)];
+                    this.playSynthNote(freq, 0.1, 'square', time);
+                }
             },
 
-            playExplosion() {
-                if (this.muted || !this.ctx) return;
-                // White noise burst
-                const bufferSize = this.ctx.sampleRate * 2;
+            playKick(time) {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.frequency.setValueAtTime(150, time);
+                osc.frequency.exponentialRampToValueAtTime(0.01, time + 0.5);
+                gain.gain.setValueAtTime(0.8, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + 0.5);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(time);
+                osc.stop(time + 0.5);
+            },
+
+            playHat(time) {
+                const bufferSize = this.ctx.sampleRate * 0.05; // Short burst
                 const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
                 const data = buffer.getChannelData(0);
+                for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
                 
-                for (let i = 0; i < bufferSize; i++) {
-                    data[i] = Math.random() * 2 - 1;
-                }
-
                 const noise = this.ctx.createBufferSource();
                 noise.buffer = buffer;
                 
+                // Bandpass filter for "Tss" sound
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'highpass';
+                filter.frequency.value = 5000;
+
                 const gain = this.ctx.createGain();
-                gain.gain.setValueAtTime(0.1, this.ctx.currentTime);
-                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + 1.0);
+                gain.gain.setValueAtTime(0.3, time);
+                gain.gain.exponentialRampToValueAtTime(0.01, time + 0.05);
                 
-                noise.connect(gain);
+                noise.connect(filter);
+                filter.connect(gain);
                 gain.connect(this.ctx.destination);
-                noise.start();
+                noise.start(time);
+            },
+
+            playBass(time) {
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(55, time); // A1
+                
+                // Filter sweep
+                const filter = this.ctx.createBiquadFilter();
+                filter.type = 'lowpass';
+                filter.frequency.setValueAtTime(100, time);
+                filter.frequency.linearRampToValueAtTime(800, time + 0.2);
+                filter.frequency.linearRampToValueAtTime(100, time + 0.4);
+
+                gain.gain.setValueAtTime(0.4, time);
+                gain.gain.linearRampToValueAtTime(0, time + 0.4);
+
+                osc.connect(filter);
+                filter.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(time);
+                osc.stop(time + 0.4);
+            },
+
+            playSynthNote(freq, duration, type = 'sine', time = null) {
+                const t = time || this.ctx.currentTime;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, t);
+                gain.gain.setValueAtTime(0.1, t);
+                gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start(t);
+                osc.stop(t + duration);
+            },
+            
+            playMorph() {
+                // Sweep effect when changing modes
+                if(this.muted) return;
+                this.playSynthNote(300, 0.5, 'triangle');
             }
         };
 
@@ -266,18 +352,19 @@
 
         // --- GLOBAL VARIABLES ---
         let scene, camera, renderer, particles, geometry, materials;
-        let count = 8000; // Increased particle count
+        let count = 8000;
         let positions, destinations, colors, sizes;
         let clock = new THREE.Clock();
         
         // State
-        let currentMode = 'heart';
-        let baseColor = new THREE.Color('#ff3366');
+        let currentMode = 'solar'; // Default to new mode
+        let baseColor = new THREE.Color('#fbbf24');
         let particleScale = 1.0;
         let time = 0;
         
         // Interaction State
         let handDetected = false;
+        let isFist = false;
         let targetRotationX = 0;
         let targetRotationY = 0;
         let mouseX = 0;
@@ -291,28 +378,22 @@
         function initThree() {
             const container = document.getElementById('canvas-container');
 
-            // Scene
             scene = new THREE.Scene();
             scene.fog = new THREE.FogExp2(0x050505, 0.02);
 
-            // Camera
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-            camera.position.z = 30;
+            camera.position.z = 40;
 
-            // Renderer
             renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
             container.appendChild(renderer.domElement);
 
-            // Particles
             createParticles();
 
-            // Events
             window.addEventListener('resize', onWindowResize);
             document.addEventListener('mousemove', onMouseMove);
             
-            // Start Loop
             animate();
         }
 
@@ -328,7 +409,6 @@
             gradient.addColorStop(1, 'rgba(0,0,0,0)');
             context.fillStyle = gradient;
             context.fillRect(0, 0, 32, 32);
-            
             const texture = new THREE.Texture(canvas);
             texture.needsUpdate = true;
             return texture;
@@ -337,7 +417,7 @@
         function createParticles() {
             geometry = new THREE.BufferGeometry();
             positions = new Float32Array(count * 3);
-            destinations = new Float32Array(count * 3); // Where they want to go
+            destinations = new Float32Array(count * 3);
             colors = new Float32Array(count * 3);
             sizes = new Float32Array(count);
             fireworkVelocities = new Float32Array(count * 3);
@@ -345,15 +425,12 @@
             const color = new THREE.Color();
 
             for (let i = 0; i < count; i++) {
-                // Initial random positions
                 positions[i * 3] = (Math.random() - 0.5) * 100;
                 positions[i * 3 + 1] = (Math.random() - 0.5) * 100;
                 positions[i * 3 + 2] = (Math.random() - 0.5) * 100;
 
-                // Initial sizes
                 sizes[i] = Math.random();
 
-                // Colors
                 color.setHSL(Math.random(), 0.7, 0.5);
                 colors[i * 3] = color.r;
                 colors[i * 3 + 1] = color.g;
@@ -377,65 +454,94 @@
             particles = new THREE.Points(geometry, material);
             scene.add(particles);
 
-            // Generate initial shapes
-            generateHeartDestinations();
+            generateSolarSystemDestinations();
         }
 
         // --- SHAPE GENERATORS ---
+        
+        function generateSolarSystemDestinations() {
+            const sunColor = new THREE.Color(baseColor); // User picked color for Sun
+            const planetColors = [
+                new THREE.Color('#3b82f6'), // Blue
+                new THREE.Color('#ef4444'), // Red
+                new THREE.Color('#10b981'), // Green
+                new THREE.Color('#a855f7')  // Purple
+            ];
+
+            for (let i = 0; i < count; i++) {
+                const i3 = i * 3;
+                
+                // 30% of particles form the Sun
+                if (i < count * 0.3) {
+                    // Random point in sphere
+                    const r = Math.random() * 6;
+                    const theta = Math.random() * Math.PI * 2;
+                    const phi = Math.acos((Math.random() * 2) - 1);
+                    
+                    destinations[i3] = r * Math.sin(phi) * Math.cos(theta);
+                    destinations[i3+1] = r * Math.sin(phi) * Math.sin(theta);
+                    destinations[i3+2] = r * Math.cos(phi);
+
+                    // Sun Color (Hot center, cooler edge)
+                    let c = sunColor.clone();
+                    c.offsetHSL(0, 0, (1-r/6)*0.3); 
+                    colors[i3] = c.r; colors[i3+1] = c.g; colors[i3+2] = c.b;
+                } else {
+                    // Rest form planetary rings
+                    const ringIndex = Math.floor(Math.random() * 4);
+                    const ringRadius = 12 + (ringIndex * 6) + Math.random() * 2;
+                    
+                    const angle = Math.random() * Math.PI * 2;
+                    
+                    // Tilt the rings slightly
+                    destinations[i3] = ringRadius * Math.cos(angle);
+                    destinations[i3+1] = (Math.random() - 0.5) * 1.5; // Flat height
+                    destinations[i3+2] = ringRadius * Math.sin(angle);
+
+                    // Planet Colors
+                    let c = planetColors[ringIndex];
+                    colors[i3] = c.r; colors[i3+1] = c.g; colors[i3+2] = c.b;
+                }
+            }
+            geometry.attributes.color.needsUpdate = true;
+        }
 
         function generateHeartDestinations() {
             const tempColor = new THREE.Color(baseColor);
             const variation = 0.2;
-            
             for (let i = 0; i < count; i++) {
                 const i3 = i * 3;
-                
                 const t = Math.random() * Math.PI * 2;
                 const x = 16 * Math.pow(Math.sin(t), 3);
                 const y = 13 * Math.cos(t) - 5 * Math.cos(2 * t) - 2 * Math.cos(3 * t) - Math.cos(4 * t);
                 const z = (Math.random() - 0.5) * 10;
-
                 const scale = 0.5 + Math.random() * 0.1;
-
                 destinations[i3] = x * scale;
                 destinations[i3 + 1] = y * scale;
                 destinations[i3 + 2] = z;
-
                 let c = tempColor.clone();
                 c.offsetHSL(Math.random() * variation - variation/2, 0, 0);
-                colors[i3] = c.r;
-                colors[i3+1] = c.g;
-                colors[i3+2] = c.b;
+                colors[i3] = c.r; colors[i3+1] = c.g; colors[i3+2] = c.b;
             }
             geometry.attributes.color.needsUpdate = true;
         }
 
         function generateFlowerDestinations() {
             const tempColor = new THREE.Color(baseColor);
-            
             for (let i = 0; i < count; i++) {
                 const i3 = i * 3;
-                
                 const u = Math.random() * Math.PI * 2;
                 const v = Math.random() * Math.PI;
-                
                 const k = 3; 
                 const rBase = Math.cos(k * u) + 2; 
                 const r = rBase * (Math.random() * 5 + 2);
-
                 const x = r * Math.sin(v) * Math.cos(u);
                 const y = r * Math.sin(v) * Math.sin(u);
                 const z = r * Math.cos(v) * 0.5;
-
-                destinations[i3] = x;
-                destinations[i3 + 1] = y;
-                destinations[i3 + 2] = z;
-
+                destinations[i3] = x; destinations[i3 + 1] = y; destinations[i3 + 2] = z;
                 let c = tempColor.clone();
                 c.offsetHSL((r/10) * 0.2, 0, 0);
-                colors[i3] = c.r;
-                colors[i3+1] = c.g;
-                colors[i3+2] = c.b;
+                colors[i3] = c.r; colors[i3+1] = c.g; colors[i3+2] = c.b;
             }
             geometry.attributes.color.needsUpdate = true;
         }
@@ -443,47 +549,32 @@
         function generateSphereDestinations() {
             const tempColor = new THREE.Color(baseColor);
             const radius = 12;
-
             for (let i = 0; i < count; i++) {
                 const i3 = i * 3;
-
-                // Golden Spiral Sphere distribution
                 const phi = Math.acos( -1 + ( 2 * i ) / count );
                 const theta = Math.sqrt( count * Math.PI ) * phi;
-
                 destinations[i3] = radius * Math.cos( theta ) * Math.sin( phi );
                 destinations[i3 + 1] = radius * Math.sin( theta ) * Math.sin( phi );
                 destinations[i3 + 2] = radius * Math.cos( phi );
-
                 let c = tempColor.clone();
-                // Gradient based on Y position
                 c.offsetHSL(destinations[i3+1] * 0.02, 0, 0);
-                colors[i3] = c.r;
-                colors[i3+1] = c.g;
-                colors[i3+2] = c.b;
+                colors[i3] = c.r; colors[i3+1] = c.g; colors[i3+2] = c.b;
             }
             geometry.attributes.color.needsUpdate = true;
         }
 
         function generateSpiralDestinations() {
             const tempColor = new THREE.Color(baseColor);
-            
             for (let i = 0; i < count; i++) {
                 const i3 = i * 3;
-                
-                // Helix
                 const t = i * 0.02; 
-                const r = 5 + (i * 0.001); // widening radius
-                
+                const r = 5 + (i * 0.001); 
                 destinations[i3] = r * Math.cos(t);
-                destinations[i3 + 1] = (i * 0.004) - 15; // Vertical spread
+                destinations[i3 + 1] = (i * 0.004) - 15;
                 destinations[i3 + 2] = r * Math.sin(t);
-
                 let c = tempColor.clone();
-                c.offsetHSL(i * 0.0002, 0, 0); // Rainbow spiral
-                colors[i3] = c.r;
-                colors[i3+1] = c.g;
-                colors[i3+2] = c.b;
+                c.offsetHSL(i * 0.0002, 0, 0);
+                colors[i3] = c.r; colors[i3+1] = c.g; colors[i3+2] = c.b;
             }
             geometry.attributes.color.needsUpdate = true;
         }
@@ -491,27 +582,20 @@
         function generateGridDestinations() {
             const tempColor = new THREE.Color(baseColor);
             const gap = 3;
-            const perRow = Math.ceil(Math.pow(count, 1/3)); // Cube root approx
+            const perRow = Math.ceil(Math.pow(count, 1/3)); 
             const offset = (perRow * gap) / 2;
-
             let idx = 0;
             for(let x = 0; x < perRow; x++) {
                 for(let y = 0; y < perRow; y++) {
                     for(let z = 0; z < perRow; z++) {
                         if (idx >= count) break;
                         const i3 = idx * 3;
-                        
                         destinations[i3] = x * gap - offset;
                         destinations[i3+1] = y * gap - offset;
                         destinations[i3+2] = z * gap - offset;
-
                         let c = tempColor.clone();
-                        // Checkerboardish coloring
                         if ((x+y+z) % 2 === 0) c.offsetHSL(0.1, 0, 0.2);
-                        colors[i3] = c.r;
-                        colors[i3+1] = c.g;
-                        colors[i3+2] = c.b;
-                        
+                        colors[i3] = c.r; colors[i3+1] = c.g; colors[i3+2] = c.b;
                         idx++;
                     }
                 }
@@ -520,26 +604,18 @@
         }
 
         function initFireworks() {
-            SoundEngine.playExplosion();
-
+            // No looping sound for fireworks start, handled by logic
             for (let i = 0; i < count; i++) {
                 const i3 = i * 3;
-                positions[i3] = 0;
-                positions[i3+1] = 0;
-                positions[i3+2] = 0;
-                
+                positions[i3] = 0; positions[i3+1] = 0; positions[i3+2] = 0;
                 const theta = Math.random() * Math.PI * 2;
                 const phi = Math.acos((Math.random() * 2) - 1);
                 const speed = Math.random() * 0.8 + 0.2;
-
                 fireworkVelocities[i3] = speed * Math.sin(phi) * Math.cos(theta);
                 fireworkVelocities[i3+1] = speed * Math.sin(phi) * Math.sin(theta);
                 fireworkVelocities[i3+2] = speed * Math.cos(phi);
-                
                 const c = new THREE.Color().setHSL(Math.random(), 1, 0.6);
-                colors[i3] = c.r;
-                colors[i3+1] = c.g;
-                colors[i3+2] = c.b;
+                colors[i3] = c.r; colors[i3+1] = c.g; colors[i3+2] = c.b;
             }
             geometry.attributes.color.needsUpdate = true;
             geometry.attributes.position.needsUpdate = true;
@@ -549,45 +625,52 @@
         // --- ANIMATION LOOP ---
         function animate() {
             requestAnimationFrame(animate);
-            
             time += 0.01;
-            const delta = clock.getDelta();
-
+            
+            // Smooth Rotation
             const smoothing = 0.05;
             particles.rotation.x += (targetRotationX - particles.rotation.x) * smoothing;
             particles.rotation.y += (targetRotationY - particles.rotation.y) * smoothing;
             
-            if (!handDetected) {
-                particles.rotation.y += 0.002;
-            }
+            // Idle spin
+            if (!handDetected) particles.rotation.y += 0.002;
 
             const positionsAttribute = geometry.attributes.position;
             const currentPositions = positionsAttribute.array;
 
-            if (currentMode === 'fireworks') {
-                fireworkResetTime += 1;
-                
+            // GRAVITY WELL LOGIC (FIST)
+            // If Fist is detected, ignore mode shape and suck everything to center
+            if (isFist) {
+                const centerSpeed = 0.1;
                 for(let i = 0; i < count; i++) {
                     const i3 = i * 3;
-                    
+                    // Move towards 0,0,0
+                    currentPositions[i3] += (0 - currentPositions[i3]) * centerSpeed;
+                    currentPositions[i3+1] += (0 - currentPositions[i3+1]) * centerSpeed;
+                    currentPositions[i3+2] += (0 - currentPositions[i3+2]) * centerSpeed;
+                }
+            } 
+            else if (currentMode === 'fireworks') {
+                // FIREWORKS PHYSICS
+                fireworkResetTime += 1;
+                for(let i = 0; i < count; i++) {
+                    const i3 = i * 3;
                     currentPositions[i3] += fireworkVelocities[i3] * particleScale;
                     currentPositions[i3+1] += fireworkVelocities[i3+1] * particleScale;
                     currentPositions[i3+2] += fireworkVelocities[i3+2] * particleScale;
-                    
-                    fireworkVelocities[i3+1] -= 0.005; // Gravity
-                    
+                    fireworkVelocities[i3+1] -= 0.005; 
                     fireworkVelocities[i3] *= 0.98;
                     fireworkVelocities[i3+1] *= 0.98;
                     fireworkVelocities[i3+2] *= 0.98;
                 }
-                
                 if(fireworkResetTime > 250) {
                     initFireworks();
+                    if(!SoundEngine.muted) SoundEngine.playSynthNote(200, 0.5, 'noise'); // explosion
                 }
-
-            } else {
+            } 
+            else {
+                // STANDARD SHAPE MORPHING
                 const speed = 0.05;
-                
                 for (let i = 0; i < count; i++) {
                     const i3 = i * 3;
                     
@@ -595,6 +678,7 @@
                     const ty = destinations[i3 + 1] * particleScale;
                     const tz = destinations[i3 + 2] * particleScale;
                     
+                    // Add subtle orbital noise
                     const noise = Math.sin(time + i) * 0.05;
                     
                     currentPositions[i3] += (tx - currentPositions[i3]) * speed + noise;
@@ -616,7 +700,8 @@
             document.querySelectorAll('.btn-mode').forEach(b => b.classList.remove('active'));
             document.getElementById('btn-' + mode).classList.add('active');
 
-            if (mode === 'heart') generateHeartDestinations();
+            if (mode === 'solar') generateSolarSystemDestinations();
+            else if (mode === 'heart') generateHeartDestinations();
             else if (mode === 'flower') generateFlowerDestinations();
             else if (mode === 'fireworks') initFireworks();
             else if (mode === 'sphere') generateSphereDestinations();
@@ -658,45 +743,69 @@
         const statusText = document.getElementById('camera-status-text');
         const gestureBar = document.getElementById('gesture-bar');
         const gestureValue = document.getElementById('gesture-value');
+        const fistIndicator = document.getElementById('fist-indicator');
 
         function onResults(results) {
             if (results.multiHandLandmarks && results.multiHandLandmarks.length > 0) {
                 handDetected = true;
                 statusDot.className = 'status-dot bg-green-500 animate-pulse';
-                statusText.innerText = 'Hand Tracking Active';
+                statusText.innerText = 'Active';
                 statusText.className = 'text-green-400 font-semibold';
 
                 const landmarks = results.multiHandLandmarks[0];
                 
+                // 1. PINCH DETECTION (Thumb Tip & Index Tip)
                 const thumbTip = landmarks[4];
                 const indexTip = landmarks[8];
+                const pinchDist = Math.sqrt(Math.pow(thumbTip.x - indexTip.x, 2) + Math.pow(thumbTip.y - indexTip.y, 2));
                 
-                const distance = Math.sqrt(
-                    Math.pow(thumbTip.x - indexTip.x, 2) +
-                    Math.pow(thumbTip.y - indexTip.y, 2)
-                );
-                
-                let rawScale = (distance - 0.02) * 5; 
-                if(rawScale < 0.1) rawScale = 0.1;
-                if(rawScale > 3.0) rawScale = 3.0;
+                // 2. FIST DETECTION
+                // Calculate average distance of finger tips (8, 12, 16, 20) to Wrist (0)
+                const wrist = landmarks[0];
+                const tips = [8, 12, 16, 20];
+                let avgTipToWrist = 0;
+                tips.forEach(idx => {
+                    const tip = landmarks[idx];
+                    avgTipToWrist += Math.sqrt(Math.pow(tip.x - wrist.x, 2) + Math.pow(tip.y - wrist.y, 2));
+                });
+                avgTipToWrist /= 4;
 
-                particleScale += (rawScale - particleScale) * 0.1;
+                // Threshold: If tips are very close to wrist, it's a fist
+                // Usually open hand is > 0.3, fist is < 0.15 (normalized coords)
+                if (avgTipToWrist < 0.25) { // tuned threshold
+                    isFist = true;
+                    fistIndicator.classList.add('active');
+                } else {
+                    isFist = false;
+                    fistIndicator.classList.remove('active');
+                }
 
+                // Apply Scale (Only if not in fist mode to avoid conflicts)
+                if (!isFist) {
+                    let rawScale = (pinchDist - 0.02) * 5; 
+                    if(rawScale < 0.1) rawScale = 0.1;
+                    if(rawScale > 3.0) rawScale = 3.0;
+                    particleScale += (rawScale - particleScale) * 0.1;
+                }
+
+                // Update UI Bar
                 const percent = Math.min(100, Math.max(0, (particleScale / 3) * 100));
                 gestureBar.style.width = `${percent}%`;
                 gestureValue.innerText = particleScale.toFixed(2) + 'x';
 
+                // 3. ROTATION (Hand Position)
                 const handX = landmarks[9].x; 
                 const handY = landmarks[9].y;
-
                 targetRotationY = ((1 - handX) - 0.5) * 4; 
                 targetRotationX = (handY - 0.5) * 4;
 
             } else {
                 handDetected = false;
+                isFist = false;
                 statusDot.className = 'status-dot bg-yellow-500';
-                statusText.innerText = 'Waiting for hand...';
+                statusText.innerText = 'Searching...';
                 statusText.className = 'text-yellow-400';
+                fistIndicator.classList.remove('active');
                 
                 particleScale += (1.0 - particleScale) * 0.05;
                 gestureBar.style.width = '33%';
@@ -731,7 +840,7 @@
             } catch (e) {
                 console.error("Camera failed:", e);
                 statusDot.className = 'status-dot bg-red-500';
-                statusText.innerText = 'Camera blocked/unavailable';
+                statusText.innerText = 'Camera blocked';
                 statusText.className = 'text-red-400';
             }
         }
