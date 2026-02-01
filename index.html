@@ -74,6 +74,40 @@
             font-weight: 600;
         }
 
+        /* AI Lab specific styles */
+        .ai-input {
+            background: rgba(0,0,0,0.4);
+            border: 1px solid rgba(168, 85, 247, 0.3);
+            color: white;
+            padding: 8px 12px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            width: 100%;
+            transition: all 0.2s;
+        }
+        .ai-input:focus {
+            outline: none;
+            border-color: #a855f7;
+            box-shadow: 0 0 0 2px rgba(168, 85, 247, 0.2);
+        }
+        .btn-dream {
+            background: linear-gradient(135deg, #8b5cf6, #d946ef);
+            color: white;
+            font-weight: 600;
+            border: none;
+            transition: all 0.3s;
+        }
+        .btn-dream:hover {
+            filter: brightness(1.1);
+            transform: scale(1.02);
+            box-shadow: 0 0 15px rgba(217, 70, 239, 0.4);
+        }
+        .btn-dream:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
         .status-dot {
             height: 8px;
             width: 8px;
@@ -167,30 +201,16 @@
                 <span id="fist-indicator" class="gesture-indicator">FIST</span>
             </div>
 
-            <!-- Multiplayer Section -->
-            <div id="mp-section" class="mb-4 pt-4 border-t border-white/10">
-                <div class="flex justify-between items-center mb-2">
-                    <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Multiplayer</label>
-                    <span id="mp-status" class="text-[10px] text-gray-500">OFFLINE</span>
-                </div>
-                
-                <!-- Lobby Controls -->
-                <div id="lobby-controls" class="flex gap-2">
-                    <button onclick="createGame()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-1.5 rounded transition">Create</button>
-                    <input type="text" id="join-code" placeholder="CODE" class="mp-input" maxlength="4">
-                    <button onclick="joinGame()" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-xs py-1.5 rounded transition">Join</button>
-                </div>
-
-                <!-- Active Game Info (Hidden by default) -->
-                <div id="game-controls" class="hidden">
-                    <div class="flex items-center bg-white/5 p-2 rounded mb-2">
-                        <div class="text-xs">
-                            <div class="text-gray-400">Room Code</div>
-                            <div id="room-code-display" class="font-mono font-bold text-lg tracking-widest text-white select-all">----</div>
-                        </div>
-                        <div id="my-role-badge" class="role-badge role-batter">BATTER</div>
-                    </div>
-                    <p class="text-[10px] text-gray-400 text-center">Share code with friend on other device</p>
+            <!-- AI Lab Section -->
+            <div class="mb-4 pt-4 border-t border-white/10">
+                <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-2 block">
+                    <i class="fas fa-sparkles text-purple-400 mr-1"></i> AI Lab
+                </label>
+                <div class="flex gap-2">
+                    <input type="text" id="dream-input" placeholder="e.g. A DNA double helix" class="ai-input" onkeydown="if(event.key === 'Enter') generateFromDream()">
+                    <button id="btn-dream" onclick="generateFromDream()" class="btn-dream rounded-lg px-3 py-1 text-xs">
+                        Dream
+                    </button>
                 </div>
             </div>
 
@@ -217,6 +237,33 @@
                     </div>
                 </div>
             </div>
+
+            <!-- Multiplayer Section -->
+            <div id="mp-section" class="mt-4 pt-4 border-t border-white/10">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Multiplayer</label>
+                    <span id="mp-status" class="text-[10px] text-gray-500">OFFLINE</span>
+                </div>
+                
+                <!-- Lobby Controls -->
+                <div id="lobby-controls" class="flex gap-2">
+                    <button onclick="createGame()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-1.5 rounded transition">Create</button>
+                    <input type="text" id="join-code" placeholder="CODE" class="mp-input" maxlength="4">
+                    <button onclick="joinGame()" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-xs py-1.5 rounded transition">Join</button>
+                </div>
+
+                <!-- Active Game Info (Hidden by default) -->
+                <div id="game-controls" class="hidden">
+                    <div class="flex items-center bg-white/5 p-2 rounded mb-2">
+                        <div class="text-xs">
+                            <div class="text-gray-400">Room Code</div>
+                            <div id="room-code-display" class="font-mono font-bold text-lg tracking-widest text-white select-all">----</div>
+                        </div>
+                        <div id="my-role-badge" class="role-badge role-batter">BATTER</div>
+                    </div>
+                    <p class="text-[10px] text-gray-400 text-center">Share code with friend on other device</p>
+                </div>
+            </div>
         </div>
 
         <div class="glass-panel">
@@ -233,6 +280,130 @@
     <div id="canvas-container"></div>
 
     <script>
+        // --- GEMINI AI INTEGRATION ---
+        const apiKey = ""; // Injected by environment
+
+        async function generateFromDream() {
+            const input = document.getElementById('dream-input');
+            const prompt = input.value.trim();
+            if (!prompt) return;
+            if (!apiKey) {
+                alert("API Key not available in this environment.");
+                return;
+            }
+
+            const btn = document.getElementById('btn-dream');
+            const originalText = btn.innerHTML;
+            btn.disabled = true;
+            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            
+            try {
+                // 1. Generate Shape Logic
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: `You are a 3D math artist. Write a JavaScript code snippet to calculate x, y, z coordinates for a particle system to form: "${prompt}".
+                                
+                                Context:
+                                - 'i' is the particle index (0 to 8000).
+                                - 'count' is total particles (8000).
+                                - 'u' is normalized index (i/count) 0 to 1.
+                                - Coordinates should be roughly -15 to 15.
+                                
+                                Rules:
+                                - ONLY return the code body. No markdown, no "here is the code".
+                                - Do NOT declare x, y, z. Just assign them (e.g. x = ...).
+                                - Use Math.sin, Math.cos, Math.random(), etc.
+                                - Example output: const r = 10; const a = u * Math.PI * 2; x = Math.cos(a)*r; y = Math.sin(a)*r; z = (u-0.5)*10;`
+                            }]
+                        }]
+                    })
+                });
+                
+                const data = await response.json();
+                const code = data.candidates?.[0]?.content?.parts?.[0]?.text;
+                
+                if (code) {
+                    const cleanCode = code.replace(/```javascript/g, '').replace(/```/g, '').trim();
+                    applyGeminiCode(cleanCode);
+                }
+
+                // 2. Generate Color Logic (Parallel-ish)
+                generateColorWithGemini(prompt);
+
+            } catch (e) {
+                console.error("AI Generation failed:", e);
+                alert("The AI couldn't dream that up. Try something simpler!");
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = originalText;
+            }
+        }
+
+        async function generateColorWithGemini(prompt) {
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: `Give me a single hex color code (e.g. #FF0000) that matches the mood of: "${prompt}". Return ONLY the hex code.`
+                            }]
+                        }]
+                    })
+                });
+                const data = await response.json();
+                let hex = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+                // Basic cleanup if Gemini returns extra text
+                const match = hex.match(/#[0-9a-fA-F]{6}/);
+                if (match) {
+                    updateColor(match[0]);
+                    document.getElementById('color-picker').value = match[0];
+                }
+            } catch (e) {
+                console.log("Color generation failed, keeping current color.");
+            }
+        }
+
+        function applyGeminiCode(codeBody) {
+            try {
+                // Create the function once
+                const generator = new Function('i', 'count', 'u', `
+                    let x=0, y=0, z=0;
+                    ${codeBody}
+                    return {x, y, z};
+                `);
+
+                for (let i = 0; i < count; i++) {
+                    const i3 = i * 3;
+                    const u = i / count;
+                    const pos = generator(i, count, u);
+                    
+                    // Safety Clamp
+                    destinations[i3] = Math.max(-50, Math.min(50, pos.x || 0));
+                    destinations[i3+1] = Math.max(-50, Math.min(50, pos.y || 0));
+                    destinations[i3+2] = Math.max(-50, Math.min(50, pos.z || 0));
+                    
+                    // Reset colors to base (will be tinted by updateColor)
+                    colors[i3] = 1; colors[i3+1] = 1; colors[i3+2] = 1;
+                }
+                
+                // Switch mode
+                currentMode = 'gemini';
+                document.querySelectorAll('.btn-mode').forEach(b => b.classList.remove('active'));
+                
+                SoundEngine.playMorph();
+
+            } catch (err) {
+                console.error("Generated code error", err);
+                alert("The AI imagined something mathematically impossible.");
+            }
+        }
+
         // --- FIREBASE CONFIG & INIT ---
         let app, auth, db;
         let currentUser = null;
@@ -984,7 +1155,9 @@
             currentMode = mode;
             SoundEngine.playMorph();
             document.querySelectorAll('.btn-mode').forEach(b => b.classList.remove('active'));
-            document.getElementById('btn-' + mode).classList.add('active');
+            // Remove check for id to allow 'gemini' mode which has no specific button
+            const btn = document.getElementById('btn-' + mode);
+            if(btn) btn.classList.add('active');
 
             if (mode === 'solar') generateSolarSystemDestinations();
             else if (mode === 'heart') generateHeartDestinations();
