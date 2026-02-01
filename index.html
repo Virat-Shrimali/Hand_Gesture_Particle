@@ -17,6 +17,11 @@
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/drawing_utils/drawing_utils.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js" crossorigin="anonymous"></script>
 
+    <!-- Firebase SDKs -->
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore-compat.js"></script>
+
     <!-- FontAwesome for Icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
@@ -112,6 +117,27 @@
             transition: opacity 0.2s;
         }
         .gesture-indicator.active { opacity: 1; background: #ef4444; }
+
+        /* Multiplayer specific */
+        .mp-input {
+            background: rgba(0,0,0,0.3);
+            border: 1px solid rgba(255,255,255,0.2);
+            color: white;
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            width: 80px;
+            text-transform: uppercase;
+        }
+        .role-badge {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: bold;
+            margin-left: auto;
+        }
+        .role-batter { background: #3b82f6; color: white; }
+        .role-bowler { background: #ef4444; color: white; }
     </style>
 </head>
 <body>
@@ -125,7 +151,7 @@
             <div class="flex justify-between items-start mb-4">
                 <div>
                     <h1 class="text-xl font-bold mb-1 bg-clip-text text-transparent bg-gradient-to-r from-indigo-400 to-purple-400">Particle Engine</h1>
-                    <p class="text-xs text-gray-400">Solar, Audio & Hand Physics</p>
+                    <p class="text-xs text-gray-400">Solar, Audio & Multiplayer</p>
                 </div>
                 <button id="audio-toggle" class="audio-btn muted" onclick="toggleAudio()" title="Toggle Techno">
                     <i class="fas fa-volume-mute"></i>
@@ -136,9 +162,36 @@
             <div class="flex items-center justify-between mb-4 text-xs bg-black/30 p-2 rounded-lg border border-white/5">
                 <div class="flex items-center">
                     <div id="camera-status-dot" class="status-dot bg-yellow-500"></div>
-                    <span id="camera-status-text" class="text-gray-300">Initializing Vision...</span>
+                    <span id="camera-status-text" class="text-gray-300">Init Vision...</span>
                 </div>
-                <span id="fist-indicator" class="gesture-indicator">FIST DETECTED</span>
+                <span id="fist-indicator" class="gesture-indicator">FIST</span>
+            </div>
+
+            <!-- Multiplayer Section -->
+            <div id="mp-section" class="mb-4 pt-4 border-t border-white/10">
+                <div class="flex justify-between items-center mb-2">
+                    <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Multiplayer</label>
+                    <span id="mp-status" class="text-[10px] text-gray-500">OFFLINE</span>
+                </div>
+                
+                <!-- Lobby Controls -->
+                <div id="lobby-controls" class="flex gap-2">
+                    <button onclick="createGame()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 text-white text-xs py-1.5 rounded transition">Create</button>
+                    <input type="text" id="join-code" placeholder="CODE" class="mp-input" maxlength="4">
+                    <button onclick="joinGame()" class="flex-1 bg-gray-700 hover:bg-gray-600 text-white text-xs py-1.5 rounded transition">Join</button>
+                </div>
+
+                <!-- Active Game Info (Hidden by default) -->
+                <div id="game-controls" class="hidden">
+                    <div class="flex items-center bg-white/5 p-2 rounded mb-2">
+                        <div class="text-xs">
+                            <div class="text-gray-400">Room Code</div>
+                            <div id="room-code-display" class="font-mono font-bold text-lg tracking-widest text-white select-all">----</div>
+                        </div>
+                        <div id="my-role-badge" class="role-badge role-batter">BATTER</div>
+                    </div>
+                    <p class="text-[10px] text-gray-400 text-center">Share code with friend on other device</p>
+                </div>
             </div>
 
             <!-- Controls -->
@@ -163,25 +216,15 @@
                         <span class="text-xs text-gray-400" id="color-hex">#FBBF24</span>
                     </div>
                 </div>
-
-                <div class="pt-2 border-t border-white/10 mt-2">
-                    <div class="flex justify-between items-center text-xs text-gray-400">
-                        <span>Gesture Scale</span>
-                        <span id="gesture-value" class="font-mono text-white">1.0x</span>
-                    </div>
-                    <div class="w-full bg-gray-700 h-1.5 rounded-full mt-2 overflow-hidden">
-                        <div id="gesture-bar" class="bg-indigo-500 h-full transition-all duration-100 ease-out" style="width: 50%"></div>
-                    </div>
-                </div>
             </div>
         </div>
 
         <div class="glass-panel">
-            <h2 class="text-xs font-bold text-gray-300 mb-2 uppercase">Profound Gestures</h2>
-            <ul class="text-xs text-gray-400 space-y-1.5 list-disc pl-4">
+            <h2 class="text-xs font-bold text-gray-300 mb-2 uppercase">Gestures</h2>
+            <ul class="text-xs text-gray-400 space-y-1.5 list-disc pl-4" id="instructions-list">
                 <li><strong class="text-white">Pinch</strong> to scale universe.</li>
-                <li><strong class="text-white">Make a Fist</strong> to create a Gravity Well (Black Hole).</li>
-                <li><strong class="text-white">Open Hand</strong> to explode/restore.</li>
+                <li><strong class="text-white">Fist</strong> for Gravity Well.</li>
+                <li><strong class="text-white">Open Hand</strong> to reset.</li>
             </ul>
         </div>
     </div>
@@ -190,6 +233,156 @@
     <div id="canvas-container"></div>
 
     <script>
+        // --- FIREBASE CONFIG & INIT ---
+        const firebaseConfig = JSON.parse(__firebase_config);
+        const app = firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+
+        let currentUser = null;
+        let gameId = null;
+        let myRole = null; // 'batter' or 'bowler'
+        let unsubscribeGame = null;
+
+        // Auth immediately
+        const initAuth = async () => {
+             if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                await auth.signInWithCustomToken(__initial_auth_token);
+             } else {
+                await auth.signInAnonymously();
+             }
+        };
+        initAuth();
+
+        auth.onAuthStateChanged((user) => {
+            currentUser = user;
+            if (user) {
+                document.getElementById('mp-status').innerText = "ONLINE";
+                document.getElementById('mp-status').classList.add('text-green-500');
+            }
+        });
+
+        // --- MULTIPLAYER LOGIC ---
+
+        function generateCode() {
+            return Math.random().toString(36).substring(2, 6).toUpperCase();
+        }
+
+        async function createGame() {
+            if (!currentUser) return;
+            gameId = generateCode();
+            myRole = 'batter'; // Host is Batter
+            
+            // Create game doc
+            const gameRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('cricket_games').doc(gameId);
+            
+            await gameRef.set({
+                host: currentUser.uid,
+                status: 'waiting',
+                created: firebase.firestore.FieldValue.serverTimestamp(),
+                batterState: { x: 0, y: 0, active: false },
+                bowlerState: { x: 0, y: 0, active: false }
+            });
+
+            setupGameUI(gameId, 'BATTER');
+            listenToGame();
+            setMode('cricket');
+        }
+
+        async function joinGame() {
+            if (!currentUser) return;
+            const code = document.getElementById('join-code').value.toUpperCase();
+            if (code.length !== 4) return alert("Enter 4-digit code");
+            
+            gameId = code;
+            myRole = 'bowler'; // Joiner is Bowler
+
+            const gameRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('cricket_games').doc(gameId);
+            const doc = await gameRef.get();
+
+            if (doc.exists) {
+                await gameRef.update({
+                    status: 'playing',
+                    joiner: currentUser.uid
+                });
+                setupGameUI(gameId, 'BOWLER');
+                listenToGame();
+                setMode('cricket');
+            } else {
+                alert("Game not found");
+                gameId = null;
+            }
+        }
+
+        function setupGameUI(code, roleLabel) {
+            document.getElementById('lobby-controls').classList.add('hidden');
+            document.getElementById('game-controls').classList.remove('hidden');
+            document.getElementById('room-code-display').innerText = code;
+            
+            const badge = document.getElementById('my-role-badge');
+            badge.innerText = roleLabel;
+            badge.className = 'role-badge ' + (roleLabel === 'BATTER' ? 'role-batter' : 'role-bowler');
+
+            // Update instructions
+            const list = document.getElementById('instructions-list');
+            if (roleLabel === 'BATTER') {
+                list.innerHTML = `<li><strong class="text-white">Palm (Open)</strong>: Move Bat.</li><li>Block the incoming balls!</li>`;
+            } else {
+                list.innerHTML = `<li><strong class="text-white">Fist</strong>: Grab Ball.</li><li><strong class="text-white">Open Hand</strong>: Throw Ball.</li>`;
+            }
+        }
+
+        let remoteHandX = 0;
+        let remoteHandY = 0;
+        let remoteHandActive = false;
+        let lastSyncTime = 0;
+
+        function listenToGame() {
+            if (unsubscribeGame) unsubscribeGame();
+            const gameRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('cricket_games').doc(gameId);
+
+            unsubscribeGame = gameRef.onSnapshot((doc) => {
+                if (!doc.exists) return;
+                const data = doc.data();
+                
+                // If I am Batter, I listen to Bowler state
+                if (myRole === 'batter' && data.bowlerState) {
+                    remoteHandX = data.bowlerState.x;
+                    remoteHandY = data.bowlerState.y;
+                    remoteHandActive = data.bowlerState.active; // If true, bowler is holding ball (Fist)
+                } 
+                // If I am Bowler, I listen to Batter state
+                else if (myRole === 'bowler' && data.batterState) {
+                    remoteHandX = data.batterState.x;
+                    remoteHandY = data.batterState.y;
+                    remoteHandActive = data.batterState.active; // If true, batter is swinging/active
+                }
+            }, (error) => {
+                console.error("Game sync error", error);
+            });
+        }
+
+        function syncMyState(x, y, isActive) {
+            if (!gameId || !currentUser) return;
+            
+            const now = Date.now();
+            if (now - lastSyncTime < 100) return; // Throttle to 100ms
+            lastSyncTime = now;
+
+            const gameRef = db.collection('artifacts').doc(appId).collection('public').doc('data').collection('cricket_games').doc(gameId);
+            
+            const updateData = {};
+            if (myRole === 'batter') {
+                updateData.batterState = { x, y, active: isActive };
+            } else {
+                updateData.bowlerState = { x, y, active: isActive }; // Active = Fist
+            }
+            
+            // Fire and forget, don't await to avoid blocking frame
+            gameRef.update(updateData).catch(e => console.log("Sync skip")); 
+        }
+
         // --- SOUND ENGINE (Techno Generator) ---
         const SoundEngine = {
             ctx: null,
@@ -197,7 +390,7 @@
             nextNoteTime: 0,
             tempo: 128,
             timerID: null,
-            step: 0, // 0-15 (16 step sequencer)
+            step: 0, 
 
             init() {
                 if (!this.ctx) {
@@ -212,13 +405,11 @@
                     if(this.ctx.state === 'suspended') this.ctx.resume();
                     this.nextNoteTime = this.ctx.currentTime;
                     this.scheduler();
-                    // Feedback ping
                     this.playSynthNote(660, 0.1, 'sine');
                 } else {
                     clearTimeout(this.timerID);
                 }
                 
-                // Update UI Icon
                 const btn = document.getElementById('audio-toggle');
                 const icon = btn.querySelector('i');
                 if (this.muted) {
@@ -234,32 +425,20 @@
 
             scheduler() {
                 if(this.muted) return;
-                
                 const secondsPerBeat = 60.0 / this.tempo;
                 const scheduleAheadTime = 0.1;
-
                 while (this.nextNoteTime < this.ctx.currentTime + scheduleAheadTime) {
                     this.playStep(this.nextNoteTime, this.step);
-                    this.nextNoteTime += (secondsPerBeat / 4); // 16th notes
+                    this.nextNoteTime += (secondsPerBeat / 4);
                     this.step = (this.step + 1) % 16;
                 }
                 this.timerID = setTimeout(() => this.scheduler(), 25);
             },
 
             playStep(time, step) {
-                // Kick: Steps 0, 4, 8, 12
-                if (step % 4 === 0) {
-                    this.playKick(time);
-                }
-                // Off-beat Hats: Steps 2, 6, 10, 14
-                if (step % 4 === 2) {
-                    this.playHat(time);
-                }
-                // Bass drone on 1st beat
-                if (step === 0) {
-                    this.playBass(time);
-                }
-                // Random Sci-fi bleeps on random 16ths
+                if (step % 4 === 0) this.playKick(time);
+                if (step % 4 === 2) this.playHat(time);
+                if (step === 0) this.playBass(time);
                 if (Math.random() > 0.85) {
                     const freq = [440, 554, 659, 880][Math.floor(Math.random()*4)];
                     this.playSynthNote(freq, 0.1, 'square', time);
@@ -280,23 +459,18 @@
             },
 
             playHat(time) {
-                const bufferSize = this.ctx.sampleRate * 0.05; // Short burst
+                const bufferSize = this.ctx.sampleRate * 0.05;
                 const buffer = this.ctx.createBuffer(1, bufferSize, this.ctx.sampleRate);
                 const data = buffer.getChannelData(0);
                 for (let i = 0; i < bufferSize; i++) data[i] = Math.random() * 2 - 1;
-                
                 const noise = this.ctx.createBufferSource();
                 noise.buffer = buffer;
-                
-                // Bandpass filter for "Tss" sound
                 const filter = this.ctx.createBiquadFilter();
                 filter.type = 'highpass';
                 filter.frequency.value = 5000;
-
                 const gain = this.ctx.createGain();
                 gain.gain.setValueAtTime(0.3, time);
                 gain.gain.exponentialRampToValueAtTime(0.01, time + 0.05);
-                
                 noise.connect(filter);
                 filter.connect(gain);
                 gain.connect(this.ctx.destination);
@@ -307,18 +481,14 @@
                 const osc = this.ctx.createOscillator();
                 const gain = this.ctx.createGain();
                 osc.type = 'sawtooth';
-                osc.frequency.setValueAtTime(55, time); // A1
-                
-                // Filter sweep
+                osc.frequency.setValueAtTime(55, time); 
                 const filter = this.ctx.createBiquadFilter();
                 filter.type = 'lowpass';
                 filter.frequency.setValueAtTime(100, time);
                 filter.frequency.linearRampToValueAtTime(800, time + 0.2);
                 filter.frequency.linearRampToValueAtTime(100, time + 0.4);
-
                 gain.gain.setValueAtTime(0.4, time);
                 gain.gain.linearRampToValueAtTime(0, time + 0.4);
-
                 osc.connect(filter);
                 filter.connect(gain);
                 gain.connect(this.ctx.destination);
@@ -341,7 +511,6 @@
             },
             
             playMorph() {
-                // Sweep effect when changing modes
                 if(this.muted) return;
                 this.playSynthNote(300, 0.5, 'triangle');
             }
@@ -357,8 +526,7 @@
         let positions, destinations, colors, sizes;
         let clock = new THREE.Clock();
         
-        // State
-        let currentMode = 'solar'; // Default to new mode
+        let currentMode = 'solar'; 
         let baseColor = new THREE.Color('#fbbf24');
         let particleScale = 1.0;
         let time = 0;
@@ -371,7 +539,6 @@
         let mouseX = 0;
         let mouseY = 0;
 
-        // Fireworks specific
         let fireworkVelocities = [];
         let fireworkResetTime = 0;
 
@@ -459,47 +626,28 @@
         }
 
         // --- SHAPE GENERATORS ---
-        
         function generateSolarSystemDestinations() {
-            const sunColor = new THREE.Color(baseColor); // User picked color for Sun
-            const planetColors = [
-                new THREE.Color('#3b82f6'), // Blue
-                new THREE.Color('#ef4444'), // Red
-                new THREE.Color('#10b981'), // Green
-                new THREE.Color('#a855f7')  // Purple
-            ];
-
+            const sunColor = new THREE.Color(baseColor);
+            const planetColors = [new THREE.Color('#3b82f6'), new THREE.Color('#ef4444'), new THREE.Color('#10b981'), new THREE.Color('#a855f7')];
             for (let i = 0; i < count; i++) {
                 const i3 = i * 3;
-                
-                // 30% of particles form the Sun
                 if (i < count * 0.3) {
-                    // Random point in sphere
                     const r = Math.random() * 6;
                     const theta = Math.random() * Math.PI * 2;
                     const phi = Math.acos((Math.random() * 2) - 1);
-                    
                     destinations[i3] = r * Math.sin(phi) * Math.cos(theta);
                     destinations[i3+1] = r * Math.sin(phi) * Math.sin(theta);
                     destinations[i3+2] = r * Math.cos(phi);
-
-                    // Sun Color (Hot center, cooler edge)
                     let c = sunColor.clone();
                     c.offsetHSL(0, 0, (1-r/6)*0.3); 
                     colors[i3] = c.r; colors[i3+1] = c.g; colors[i3+2] = c.b;
                 } else {
-                    // Rest form planetary rings
                     const ringIndex = Math.floor(Math.random() * 4);
                     const ringRadius = 12 + (ringIndex * 6) + Math.random() * 2;
-                    
                     const angle = Math.random() * Math.PI * 2;
-                    
-                    // Tilt the rings slightly
                     destinations[i3] = ringRadius * Math.cos(angle);
-                    destinations[i3+1] = (Math.random() - 0.5) * 1.5; // Flat height
+                    destinations[i3+1] = (Math.random() - 0.5) * 1.5;
                     destinations[i3+2] = ringRadius * Math.sin(angle);
-
-                    // Planet Colors
                     let c = planetColors[ringIndex];
                     colors[i3] = c.r; colors[i3+1] = c.g; colors[i3+2] = c.b;
                 }
@@ -605,69 +753,88 @@
         }
 
         function generateCricketDestinations() {
-            const woodColor = new THREE.Color('#8B4513'); // SaddleBrown
+            const woodColor = new THREE.Color('#8B4513'); 
             const gripColor = new THREE.Color('#111111');
-            const ballColor = new THREE.Color('#DC143C'); // Crimson
-            const stumpColor = new THREE.Color('#F4A460'); // SandyBrown
+            const ballColor = new THREE.Color('#DC143C'); 
+            const stumpColor = new THREE.Color('#F4A460'); 
+
+            // Multiplayer Logic Variables
+            // Bat Position (controlled by Batter Role)
+            let batOffsetX = 0;
+            let batOffsetY = 0;
+            // Ball Position (controlled by Bowler Role)
+            let ballOffsetX = 0;
+            let ballOffsetY = 0;
+
+            if (gameId) {
+                // If Multiplayer is Active
+                if (myRole === 'batter') {
+                    // I control Bat (Local Hand)
+                    batOffsetX = (targetRotationY * 5); // Use rotation as proxy for X movement
+                    batOffsetY = (-targetRotationX * 5);
+                    // Remote Hand controls Ball
+                    ballOffsetX = -(remoteHandX - 0.5) * 20;
+                    ballOffsetY = -(remoteHandY - 0.5) * 10;
+                } else {
+                    // I control Ball (Local Hand)
+                    ballOffsetX = -(targetRotationY * 20); // Scale up movement
+                    ballOffsetY = -(targetRotationX * 10);
+                    // Remote Hand controls Bat
+                    // Need to invert remote hand logic to match batter's perspective?
+                    // Simplified: just map raw remote coords
+                    batOffsetX = ((1 - remoteHandX) - 0.5) * 10;
+                    batOffsetY = (remoteHandY - 0.5) * 10;
+                }
+            } else {
+                // Single Player Mode - Static or Mouse influenced
+                batOffsetX = 0;
+                ballOffsetX = 0;
+            }
 
             for (let i = 0; i < count; i++) {
                 const i3 = i * 3;
                 
                 if (i < count * 0.5) { 
-                    // BAT BLADE (50%) - Shifted right
-                    const x = (Math.random() - 0.5) * 4.5 + 4; 
-                    const y = (Math.random() - 0.5) * 14 - 2; // Height
+                    // BAT BLADE
+                    const x = (Math.random() - 0.5) * 4.5 + 4 + batOffsetX; 
+                    const y = (Math.random() - 0.5) * 14 - 2 + batOffsetY; 
                     const z = (Math.random() - 0.5) * 1.5;
-                    
-                    destinations[i3] = x;
-                    destinations[i3+1] = y;
-                    destinations[i3+2] = z;
-                    
+                    destinations[i3] = x; destinations[i3+1] = y; destinations[i3+2] = z;
                     colors[i3] = woodColor.r; colors[i3+1] = woodColor.g; colors[i3+2] = woodColor.b;
                 } else if (i < count * 0.65) {
-                    // BAT HANDLE (15%)
+                    // BAT HANDLE
                     const angle = Math.random() * Math.PI * 2;
                     const r = Math.random() * 0.6;
-                    const h = Math.random() * 6; // Height
-                    
-                    const x = r * Math.cos(angle) + 4; // aligned with blade center
-                    const y = h + 5; // Start at top of blade
+                    const h = Math.random() * 6;
+                    const x = r * Math.cos(angle) + 4 + batOffsetX; 
+                    const y = h + 5 + batOffsetY; 
                     const z = r * Math.sin(angle);
-                    
-                    destinations[i3] = x;
-                    destinations[i3+1] = y;
-                    destinations[i3+2] = z;
-                    
+                    destinations[i3] = x; destinations[i3+1] = y; destinations[i3+2] = z;
                     colors[i3] = gripColor.r; colors[i3+1] = gripColor.g; colors[i3+2] = gripColor.b;
                 } else if (i < count * 0.85) {
-                    // BALL (20%)
+                    // BALL
+                    // If Bowler is "active" (Fist), ball is held. If not, it flies? 
+                    // For visualization, let's just move the ball to the offset.
                     const r = Math.random() * 2.0;
                     const theta = Math.random() * Math.PI * 2;
                     const phi = Math.acos((Math.random() * 2) - 1);
-                    
-                    // Position ball to left of bat
-                    const cx = -6;
-                    const cy = -5;
+                    const cx = -6 + ballOffsetX;
+                    const cy = -5 + ballOffsetY;
                     const cz = 5;
-                    
                     destinations[i3] = r * Math.sin(phi) * Math.cos(theta) + cx;
                     destinations[i3+1] = r * Math.sin(phi) * Math.sin(theta) + cy;
                     destinations[i3+2] = r * Math.cos(phi) + cz;
-                    
                     colors[i3] = ballColor.r; colors[i3+1] = ballColor.g; colors[i3+2] = ballColor.b;
                 } else {
-                     // STUMPS (15%)
+                     // STUMPS (Static)
                      const stumpIndex = Math.floor(Math.random() * 3);
-                     const stumpX = -6 + (stumpIndex * 1.5 - 1.5); // centered around -6
-                     
+                     const stumpX = -6 + (stumpIndex * 1.5 - 1.5);
                      const h = (Math.random() - 0.5) * 14; 
                      const r = Math.random() * 0.4;
                      const angle = Math.random() * Math.PI * 2;
-                     
                      destinations[i3] = r * Math.cos(angle) + stumpX;
                      destinations[i3+1] = h - 2; 
                      destinations[i3+2] = r * Math.sin(angle) - 5; 
-                     
                      colors[i3] = stumpColor.r; colors[i3+1] = stumpColor.g; colors[i3+2] = stumpColor.b;
                 }
             }
@@ -675,7 +842,6 @@
         }
 
         function initFireworks() {
-            // No looping sound for fireworks start, handled by logic
             for (let i = 0; i < count; i++) {
                 const i3 = i * 3;
                 positions[i3] = 0; positions[i3+1] = 0; positions[i3+2] = 0;
@@ -698,31 +864,37 @@
             requestAnimationFrame(animate);
             time += 0.01;
             
-            // Smooth Rotation
+            // Interaction Smoothing
             const smoothing = 0.05;
-            particles.rotation.x += (targetRotationX - particles.rotation.x) * smoothing;
-            particles.rotation.y += (targetRotationY - particles.rotation.y) * smoothing;
             
-            // Idle spin
-            if (!handDetected) particles.rotation.y += 0.002;
+            // If in Cricket Multiplayer, we handle rotation differently inside generateCricketDestinations
+            // Otherwise, we rotate the whole scene
+            if (currentMode !== 'cricket') {
+                particles.rotation.x += (targetRotationX - particles.rotation.x) * smoothing;
+                particles.rotation.y += (targetRotationY - particles.rotation.y) * smoothing;
+                if (!handDetected) particles.rotation.y += 0.002;
+            } else {
+                // In cricket mode, lock camera rotation somewhat to focus on gameplay
+                particles.rotation.x *= 0.95;
+                particles.rotation.y *= 0.95;
+                // Re-run generation every frame to simulate "Physics" of moving bat/ball
+                generateCricketDestinations();
+            }
 
             const positionsAttribute = geometry.attributes.position;
             const currentPositions = positionsAttribute.array;
 
-            // GRAVITY WELL LOGIC (FIST)
-            // If Fist is detected, ignore mode shape and suck everything to center
-            if (isFist) {
+            if (isFist && currentMode !== 'cricket') {
+                // Gravity Well (Only outside of cricket, as cricket uses fist for ball control)
                 const centerSpeed = 0.1;
                 for(let i = 0; i < count; i++) {
                     const i3 = i * 3;
-                    // Move towards 0,0,0
                     currentPositions[i3] += (0 - currentPositions[i3]) * centerSpeed;
                     currentPositions[i3+1] += (0 - currentPositions[i3+1]) * centerSpeed;
                     currentPositions[i3+2] += (0 - currentPositions[i3+2]) * centerSpeed;
                 }
             } 
             else if (currentMode === 'fireworks') {
-                // FIREWORKS PHYSICS
                 fireworkResetTime += 1;
                 for(let i = 0; i < count; i++) {
                     const i3 = i * 3;
@@ -736,7 +908,7 @@
                 }
                 if(fireworkResetTime > 250) {
                     initFireworks();
-                    if(!SoundEngine.muted) SoundEngine.playSynthNote(200, 0.5, 'noise'); // explosion
+                    if(!SoundEngine.muted) SoundEngine.playSynthNote(200, 0.5, 'noise');
                 }
             } 
             else {
@@ -744,14 +916,10 @@
                 const speed = 0.05;
                 for (let i = 0; i < count; i++) {
                     const i3 = i * 3;
-                    
                     const tx = destinations[i3] * particleScale;
                     const ty = destinations[i3 + 1] * particleScale;
                     const tz = destinations[i3 + 2] * particleScale;
-                    
-                    // Add subtle orbital noise
                     const noise = Math.sin(time + i) * 0.05;
-                    
                     currentPositions[i3] += (tx - currentPositions[i3]) * speed + noise;
                     currentPositions[i3 + 1] += (ty - currentPositions[i3 + 1]) * speed + noise;
                     currentPositions[i3 + 2] += (tz - currentPositions[i3 + 2]) * speed;
@@ -763,11 +931,9 @@
         }
 
         // --- UI & LOGIC HELPERS ---
-        
         function setMode(mode) {
             currentMode = mode;
             SoundEngine.playMorph();
-            
             document.querySelectorAll('.btn-mode').forEach(b => b.classList.remove('active'));
             document.getElementById('btn-' + mode).classList.add('active');
 
@@ -791,8 +957,6 @@
             updateColor(e.target.value);
         });
 
-        // --- INPUT HANDLING ---
-
         function onWindowResize() {
             camera.aspect = window.innerWidth / window.innerHeight;
             camera.updateProjectionMatrix();
@@ -809,12 +973,9 @@
         }
 
         // --- MEDIAPIPE HAND TRACKING ---
-        
         const videoElement = document.getElementsByClassName('input_video')[0];
         const statusDot = document.getElementById('camera-status-dot');
         const statusText = document.getElementById('camera-status-text');
-        const gestureBar = document.getElementById('gesture-bar');
-        const gestureValue = document.getElementById('gesture-value');
         const fistIndicator = document.getElementById('fist-indicator');
 
         function onResults(results) {
@@ -826,13 +987,10 @@
 
                 const landmarks = results.multiHandLandmarks[0];
                 
-                // 1. PINCH DETECTION (Thumb Tip & Index Tip)
                 const thumbTip = landmarks[4];
                 const indexTip = landmarks[8];
                 const pinchDist = Math.sqrt(Math.pow(thumbTip.x - indexTip.x, 2) + Math.pow(thumbTip.y - indexTip.y, 2));
                 
-                // 2. FIST DETECTION
-                // Calculate average distance of finger tips (8, 12, 16, 20) to Wrist (0)
                 const wrist = landmarks[0];
                 const tips = [8, 12, 16, 20];
                 let avgTipToWrist = 0;
@@ -842,9 +1000,7 @@
                 });
                 avgTipToWrist /= 4;
 
-                // Threshold: If tips are very close to wrist, it's a fist
-                // Usually open hand is > 0.3, fist is < 0.15 (normalized coords)
-                if (avgTipToWrist < 0.25) { // tuned threshold
+                if (avgTipToWrist < 0.25) { 
                     isFist = true;
                     fistIndicator.classList.add('active');
                 } else {
@@ -852,7 +1008,6 @@
                     fistIndicator.classList.remove('active');
                 }
 
-                // Apply Scale (Only if not in fist mode to avoid conflicts)
                 if (!isFist) {
                     let rawScale = (pinchDist - 0.02) * 5; 
                     if(rawScale < 0.1) rawScale = 0.1;
@@ -860,16 +1015,16 @@
                     particleScale += (rawScale - particleScale) * 0.1;
                 }
 
-                // Update UI Bar
-                const percent = Math.min(100, Math.max(0, (particleScale / 3) * 100));
-                gestureBar.style.width = `${percent}%`;
-                gestureValue.innerText = particleScale.toFixed(2) + 'x';
-
-                // 3. ROTATION (Hand Position)
                 const handX = landmarks[9].x; 
                 const handY = landmarks[9].y;
                 targetRotationY = ((1 - handX) - 0.5) * 4; 
                 targetRotationX = (handY - 0.5) * 4;
+
+                // Sync for multiplayer
+                if (gameId) {
+                    // Send normalized coordinates (0-1)
+                    syncMyState(handX, handY, isFist);
+                }
 
             } else {
                 handDetected = false;
@@ -878,10 +1033,7 @@
                 statusText.innerText = 'Searching...';
                 statusText.className = 'text-yellow-400';
                 fistIndicator.classList.remove('active');
-                
                 particleScale += (1.0 - particleScale) * 0.05;
-                gestureBar.style.width = '33%';
-                gestureValue.innerText = '1.00x';
             }
         }
 
